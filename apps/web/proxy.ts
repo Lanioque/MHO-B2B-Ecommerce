@@ -4,6 +4,22 @@ import type { NextRequest } from "next/server";
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+  const isAuthenticated = !!req.auth?.user;
+
+  // Log authentication status for debugging
+  console.log('[Proxy]', {
+    pathname,
+    isAuthenticated,
+    hasAuth: !!req.auth,
+    userId: req.auth?.user?.id,
+  });
+
+  // Redirect authenticated users away from auth pages
+  const authPages = ['/login', '/register', '/onboarding'];
+  if (isAuthenticated && authPages.some(page => pathname.startsWith(page))) {
+    console.log('[Proxy] Redirecting authenticated user to dashboard from:', pathname);
+    return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
 
   // Public routes - allow without authentication
   if (

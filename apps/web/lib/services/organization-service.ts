@@ -1,0 +1,99 @@
+/**
+ * Organization Service
+ * Business logic for organization operations
+ */
+
+import {
+  IOrganizationRepository,
+  CreateOrganizationData,
+} from '@/lib/domain/interfaces/IOrganizationRepository';
+import { IUnitOfWork } from '@/lib/domain/interfaces/IUnitOfWork';
+import { Organization, Membership } from '@prisma/client';
+import { NotFoundError } from '@/lib/errors';
+import { getOrganizationRepository } from '@/lib/repositories/organization-repository';
+import { getUnitOfWork } from '@/lib/repositories/unit-of-work';
+
+export interface CreateOrganizationWithMembershipData {
+  organization: CreateOrganizationData;
+  userId: string;
+  role: string;
+}
+
+export class OrganizationService {
+  constructor(
+    private readonly organizationRepository: IOrganizationRepository,
+    private readonly unitOfWork: IUnitOfWork
+  ) {}
+
+  async getOrganizationById(id: string): Promise<Organization> {
+    const org = await this.organizationRepository.findById(id);
+    if (!org) {
+      throw new NotFoundError('Organization not found');
+    }
+    return org;
+  }
+
+  async getUserOrganizations(
+    userId: string
+  ): Promise<Array<Membership & { org: Organization }>> {
+    return this.organizationRepository.findMembershipsByUserId(userId);
+  }
+
+  /**
+   * Create organization with initial membership
+   * Uses transaction to ensure atomicity
+   */
+  async createOrganizationWithMembership(
+    data: CreateOrganizationWithMembershipData
+  ): Promise<{ organization: Organization; membership: Membership }> {
+    return this.unitOfWork.execute(async (tx) => {
+      const orgRepo = new (this.organizationRepository.constructor as any)(tx);
+
+      // Create organization
+      const organization = await orgRepo.create(data.organization);
+
+      // Create membership
+      const membership = await orgRepo.createMembership({
+        userId: data.userId,
+        orgId: organization.id,
+        role: data.role,
+      });
+
+      return { organization, membership };
+    });
+  }
+
+  async updateOrganization(
+    id: string,
+    data: Partial<CreateOrganizationData>
+  ): Promise<Organization> {
+    // Ensure organization exists
+    await this.getOrganizationById(id);
+
+    return this.organizationRepository.update(id, data);
+  }
+
+  async deleteOrganization(id: string): Promise<void> {
+    // Ensure organization exists
+    await this.getOrganizationById(id);
+
+    await this.organizationRepository.delete(id);
+  }
+
+  async checkUserMembership(userId: string, orgId: string): Promise<Membership | null> {
+    return this.organizationRepository.findMembership(userId, orgId);
+  }
+}
+
+// Factory function for dependency injection
+export function createOrganizationService(
+  organizationRepository?: IOrganizationRepository,
+  unitOfWork?: IUnitOfWork
+): OrganizationService {
+  return new OrganizationService(
+    organizationRepository || getOrganizationRepository(),
+    unitOfWork || getUnitOfWork()
+  );
+}
+
+

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { fetchZohoItemsForOrganization } from "@/lib/zoho";
+import { getZohoClient } from "@/lib/clients/zoho-client";
 import { createHash, timingSafeEqual } from "crypto";
 
 /**

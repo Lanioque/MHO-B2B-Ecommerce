@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { exchangeZohoCodeWithRegion, ZohoError } from "@/lib/zoho";
+import { getZohoClient, ZohoError } from "@/lib/clients/zoho-client";
 import { prisma } from "@/lib/prisma";
+import { ZohoRegion } from "@/lib/config";
 
+/**
+ * GET /api/zoho/oauth/callback
+ * Handle Zoho OAuth callback and save tokens
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -18,7 +23,7 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code");
     const orgId = searchParams.get("state");
     const error = searchParams.get("error");
-    const location = searchParams.get("location") || "eu";
+    const location = (searchParams.get("location") || "eu") as ZohoRegion;
     
     console.log("[OAuth] Callback received:", { code: !!code, orgId, location });
 
@@ -35,18 +40,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(errorUrl);
     }
 
-    // Exchange code for tokens (use correct region URL)
-    const ZOHO_AUTH_URLS: Record<string, string> = {
-      eu: "https://accounts.zoho.eu",
-      com: "https://accounts.zoho.com",
-      in: "https://accounts.zoho.in",
-      us: "https://accounts.zoho.com", // US uses .com
-    };
-    const authUrl = ZOHO_AUTH_URLS[location] || ZOHO_AUTH_URLS.eu;
-    
-    console.log(`[OAuth] Using auth URL: ${authUrl} for region: ${location}`);
-    
-    const tokenData = await exchangeZohoCodeWithRegion(code, authUrl);
+    // Exchange code for tokens using unified client
+    const zohoClient = getZohoClient();
+    const tokenData = await zohoClient.exchangeCode(code, location);
 
     console.log("[OAuth] Token exchange response:", {
       hasAccessToken: !!tokenData.access_token,
@@ -93,6 +89,8 @@ export async function GET(request: NextRequest) {
     let errorMessage = "Failed to connect Zoho";
 
     if (error instanceof ZohoError) {
+      errorMessage += `: ${error.message}`;
+    } else if (error instanceof Error) {
       errorMessage += `: ${error.message}`;
     }
 

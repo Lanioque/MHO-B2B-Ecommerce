@@ -1,122 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getOrgContext } from "@/lib/auth-helpers";
-import { z, ZodError } from "zod";
+import { createProductService } from "@/lib/services/product-service";
+import { withErrorHandler } from "@/lib/middleware/error-handler";
+import { validateRequestBody, parsePaginationParams } from "@/lib/middleware/validation";
+import { CreateProductSchema } from "@/lib/dto/ProductDto";
+import { ProductMapper } from "@/lib/dto/mapper";
 
-const createProductSchema = z.object({
-  sku: z.string().min(1),
-  name: z.string().min(1),
-  slug: z.string().min(1),
-  description: z.string().optional(),
-  priceCents: z.number().int().positive(),
-  currency: z.string().default("USD"),
-  vatRate: z.number().min(0).max(1).default(0),
-  zohoItemId: z.string().optional(),
-  isVisible: z.boolean().default(true),
-});
+/**
+ * GET /api/products
+ * List products with pagination and filters
+ * Thin controller - delegates to ProductService
+ */
+async function getProductsHandler(req: NextRequest) {
+  const productService = createProductService();
 
-export async function GET(req: NextRequest) {
-  try {
-    // Products are global, fetched from Zoho - no org filtering needed
-    const where: any = {};
+  // Parse filters
+  const isVisible = req.nextUrl.searchParams.get("isVisible");
+  const filter = {
+    isVisible: isVisible !== null ? isVisible === "true" : undefined,
+    status: 'active',
+    hasImage: true,
+  };
 
-    // Filters
-    const isVisible = req.nextUrl.searchParams.get("isVisible");
-    if (isVisible !== null) {
-      where.isVisible = isVisible === "true";
-    }
+  // Parse pagination
+  const pagination = parsePaginationParams(req);
 
-    // Pagination
-    const page = parseInt(req.nextUrl.searchParams.get("page") || "1");
-    const pageSize = parseInt(req.nextUrl.searchParams.get("pageSize") || "20");
-    const skip = (page - 1) * pageSize;
+  // Get products
+  const result = await productService.getProducts(filter, pagination);
 
-    // Get total count
-    const total = await prisma.product.count({ 
-      where: {
-        ...where,
-        status: 'active',
-        imageName: { not: null },
-      },
-    });
-
-    // Get paginated products
-    const products = await prisma.product.findMany({
-      where: {
-        ...where,
-        status: 'active',
-        imageName: { not: null },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: pageSize,
-    });
-
-    return NextResponse.json({
-      products,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages: Math.ceil(total / pageSize),
-      },
-    });
-  } catch (error: any) {
-    if (error.statusCode) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode }
-      );
-    }
-
-    console.error("Error fetching products:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    products: ProductMapper.toResponseDtoList(result.items),
+    pagination: {
+      page: result.page,
+      pageSize: result.pageSize,
+      total: result.total,
+      totalPages: result.totalPages,
+    },
+  });
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const validated = createProductSchema.parse(body);
+/**
+ * POST /api/products
+ * Create a new product
+ * Thin controller - delegates to ProductService
+ */
+async function createProductHandler(req: NextRequest) {
+  const productService = createProductService();
 
-    // Check for duplicate SKU or slug
-    const existing = await prisma.product.findFirst({
-      where: {
-        OR: [
-          { sku: validated.sku },
-          { slug: validated.slug },
-        ],
-      },
-    });
+  // Validate request body
+  const validated = await validateRequestBody(req, CreateProductSchema);
 
-    if (existing) {
-      return NextResponse.json(
-        { error: "Product with this SKU or slug already exists" },
-        { status: 409 }
-      );
-    }
+  // Create product
+  const product = await productService.createProduct(validated);
 
-    const product = await prisma.product.create({
-      data: validated,
-    });
-
-    return NextResponse.json({ product }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error("Product creation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { product: ProductMapper.toResponseDto(product) },
+    { status: 201 }
+  );
 }
+
+export const GET = withErrorHandler(getProductsHandler);
+export const POST = withErrorHandler(createProductHandler);
 

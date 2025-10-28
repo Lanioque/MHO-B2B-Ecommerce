@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/auth-helpers";
+import { createOrganizationService } from "@/lib/services/organization-service";
+import { withErrorHandler } from "@/lib/middleware/error-handler";
+import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
 
 const createOrgSchema = z.object({
@@ -10,80 +12,54 @@ const createOrgSchema = z.object({
   supportedDietTypes: z.array(z.string()).optional(),
 });
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await requireAuth();
-    const body = await req.json();
-    const validated = createOrgSchema.parse(body);
+/**
+ * POST /api/orgs
+ * Create organization with initial membership
+ * Thin controller - delegates to OrganizationService
+ */
+async function createOrgHandler(req: NextRequest) {
+  const session = await requireAuth();
+  const organizationService = createOrganizationService();
 
-    // Create organization
-    const org = await prisma.organization.create({
-      data: {
-        name: validated.name,
-        vatNumber: validated.vatNumber,
-        employeeCount: validated.employeeCount,
-        supportedDietTypes: validated.supportedDietTypes || [],
-      },
-    });
+  // Validate request body
+  const validated = await validateRequestBody(req, createOrgSchema);
 
-    // Create membership with OWNER role
-    await prisma.membership.create({
-      data: {
-        userId: session.user.id,
-        orgId: org.id,
-        role: "OWNER",
-      },
-    });
+  // Create organization with membership (atomic operation)
+  const { organization } = await organizationService.createOrganizationWithMembership({
+    organization: {
+      name: validated.name,
+      vatNumber: validated.vatNumber,
+      employeeCount: validated.employeeCount,
+      supportedDietTypes: validated.supportedDietTypes || [],
+    },
+    userId: session.user.id,
+    role: "OWNER",
+  });
 
-    return NextResponse.json({ org }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error("Organization creation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ org: organization }, { status: 201 });
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await requireAuth();
+/**
+ * GET /api/orgs
+ * List user's organizations
+ * Thin controller - delegates to OrganizationService
+ */
+async function getUserOrgsHandler(req: NextRequest) {
+  const session = await requireAuth();
+  const organizationService = createOrganizationService();
 
-    // Get user's organizations
-    const memberships = await prisma.membership.findMany({
-      where: { userId: session.user.id },
-      include: {
-        org: {
-          select: {
-            id: true,
-            name: true,
-            vatNumber: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
+  // Get user's organizations
+  const memberships = await organizationService.getUserOrganizations(session.user.id);
 
-    const orgs = memberships.map((m) => ({
-      ...m.org,
-      role: m.role,
-      membershipId: m.id,
-    }));
+  const orgs = memberships.map((m) => ({
+    ...m.org,
+    role: m.role,
+    membershipId: m.id,
+  }));
 
-    return NextResponse.json({ orgs });
-  } catch (error) {
-    console.error("Error fetching organizations:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ orgs });
 }
+
+export const POST = withErrorHandler(createOrgHandler);
+export const GET = withErrorHandler(getUserOrgsHandler);
 

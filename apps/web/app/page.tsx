@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { auth } from "@/lib/auth";
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Check if user is authenticated
+  const session = await auth();
+  const isAuthenticated = !!session?.user;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
@@ -15,12 +20,20 @@ export default function HomePage() {
             <span className="text-xl font-bold text-gray-900">MHO Platform</span>
           </div>
           <nav className="flex items-center space-x-4">
-            <Link href="/login">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-            <Link href="/register">
-              <Button>Get Started</Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/dashboard">
+                <Button>Go to Dashboard</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost">Sign In</Button>
+                </Link>
+                <Link href="/register">
+                  <Button>Get Started</Button>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -37,16 +50,26 @@ export default function HomePage() {
             Built for modern food businesses.
           </p>
           <div className="flex items-center justify-center space-x-4">
-            <Link href="/register">
-              <Button size="lg" className="text-lg px-8">
-                Start Free Trial
-              </Button>
-            </Link>
-            <Link href="/login">
-              <Button size="lg" variant="outline" className="text-lg px-8">
-                Sign In
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/dashboard">
+                <Button size="lg" className="text-lg px-8">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/register">
+                  <Button size="lg" className="text-lg px-8">
+                    Start Free Trial
+                  </Button>
+                </Link>
+                <Link href="/login">
+                  <Button size="lg" variant="outline" className="text-lg px-8">
+                    Sign In
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -166,16 +189,26 @@ export default function HomePage() {
           </CardHeader>
           <CardContent className="text-center">
             <div className="flex items-center justify-center space-x-4">
-              <Link href="/register">
-                <Button size="lg" variant="secondary" className="text-lg px-8">
-                  Create Account
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button size="lg" variant="ghost" className="text-lg px-8 text-white hover:text-blue-600">
-                  Sign In
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link href="/dashboard">
+                  <Button size="lg" variant="secondary" className="text-lg px-8">
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link href="/register">
+                    <Button size="lg" variant="secondary" className="text-lg px-8">
+                      Create Account
+                    </Button>
+                  </Link>
+                  <Link href="/login">
+                    <Button size="lg" variant="ghost" className="text-lg px-8 text-white hover:text-blue-600">
+                      Sign In
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { requireAuth, requireRole, Role } from "@/lib/auth-helpers";
+import { createBranchService } from "@/lib/services/branch-service";
+import { withErrorHandler } from "@/lib/middleware/error-handler";
+import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
 
 const createBranchSchema = z.object({
@@ -22,99 +24,51 @@ const createBranchSchema = z.object({
   }),
 });
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await requireAuth();
-    const body = await req.json();
-    const validated = createBranchSchema.parse(body);
+/**
+ * POST /api/branches
+ * Create branch with addresses atomically
+ * Thin controller - delegates to BranchService with transaction support
+ */
+async function createBranchHandler(req: NextRequest) {
+  await requireAuth();
+  const branchService = createBranchService();
 
-    // Verify user has access to org
-    await requireRole(validated.orgId, Role.ADMIN);
+  // Validate request body
+  const validated = await validateRequestBody(req, createBranchSchema);
 
-    // Create addresses
-    const billingAddress = await prisma.address.create({
-      data: validated.billing,
-    });
+  // Verify user has access to org
+  await requireRole(validated.orgId, Role.ADMIN);
 
-    const shippingAddress = await prisma.address.create({
-      data: validated.shipping,
-    });
+  // Create branch (atomic operation with transaction)
+  const branch = await branchService.createBranch(validated);
 
-    // Create branch
-    const branch = await prisma.branch.create({
-      data: {
-        orgId: validated.orgId,
-        name: validated.name,
-        billingId: billingAddress.id,
-        shippingId: shippingAddress.id,
-      },
-      include: {
-        billing: true,
-        shipping: true,
-      },
-    });
-
-    return NextResponse.json({ branch }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    if ((error as any).statusCode) {
-      return NextResponse.json(
-        { error: (error as any).message },
-        { status: (error as any).statusCode }
-      );
-    }
-
-    console.error("Branch creation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ branch }, { status: 201 });
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await requireAuth();
-    const orgId = req.nextUrl.searchParams.get("orgId");
+/**
+ * GET /api/branches
+ * List branches for organization
+ * Thin controller - delegates to BranchService
+ */
+async function getBranchesHandler(req: NextRequest) {
+  await requireAuth();
+  const branchService = createBranchService();
 
-    if (!orgId) {
-      return NextResponse.json(
-        { error: "orgId is required" },
-        { status: 400 }
-      );
-    }
+  const orgId = req.nextUrl.searchParams.get("orgId");
 
-    // Verify access
-    await requireRole(orgId, Role.CUSTOMER);
-
-    const branches = await prisma.branch.findMany({
-      where: { orgId },
-      include: {
-        billing: true,
-        shipping: true,
-      },
-    });
-
-    return NextResponse.json({ branches });
-  } catch (error: any) {
-    if (error.statusCode) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.statusCode }
-      );
-    }
-
-    console.error("Error fetching branches:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  if (!orgId) {
+    return NextResponse.json({ error: "orgId is required" }, { status: 400 });
   }
+
+  // Verify access
+  await requireRole(orgId, Role.CUSTOMER);
+
+  // Get branches
+  const branches = await branchService.getBranchesByOrgId(orgId);
+
+  return NextResponse.json({ branches });
 }
+
+export const POST = withErrorHandler(createBranchHandler);
+export const GET = withErrorHandler(getBranchesHandler);
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { createAuthService } from "@/lib/services/auth-service";
+import { withErrorHandler } from "@/lib/middleware/error-handler";
+import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -11,55 +12,26 @@ const registerSchema = z.object({
   name: z.string().optional(),
 });
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const validated = registerSchema.parse(body);
+/**
+ * POST /api/auth/register
+ * Register a new user
+ * Thin controller - delegates to AuthService
+ */
+async function registerHandler(req: NextRequest) {
+  const authService = createAuthService();
 
-    // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: validated.email },
-    });
+  // Validate request body
+  const validated = await validateRequestBody(req, registerSchema);
 
-    if (existingUser) {
-      return NextResponse.json(
-        { error: "User already exists" },
-        { status: 409 }
-      );
-    }
+  // Register user
+  const user = await authService.registerUser({
+    email: validated.email,
+    password: validated.password,
+    name: validated.name,
+  });
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(validated.password, 12);
-
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: validated.email,
-        password: hashedPassword,
-        name: validated.name,
-      },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        createdAt: true,
-      },
-    });
-
-    return NextResponse.json({ user }, { status: 201 });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      );
-    }
-
-    console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({ user }, { status: 201 });
 }
+
+export const POST = withErrorHandler(registerHandler);
 
