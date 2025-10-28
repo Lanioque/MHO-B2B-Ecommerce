@@ -1,0 +1,420 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String       @id @default(uuid())
+  email       String       @unique
+  password    String
+  name        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  memberships Membership[]
+
+  @@index([email])
+}
+
+model Organization {
+  id                 String           @id @default(uuid())
+  name               String
+  vatNumber          String?
+  employeeCount      Int?
+  supportedDietTypes String[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  memberships        Membership[]
+  branches           Branch[]
+  // Products are global, not per-org (fetched from Zoho)
+  customers          Customer[]
+  orders             Order[]
+  carts              Cart[]
+  zohoConnections    ZohoConnection[]
+  invoices           Invoice[]
+  employees          Employee[]
+  
+  @@index([createdAt])
+}
+
+model Membership {
+  id        String       @id @default(uuid())
+  userId    String
+  orgId     String
+  role      Role         @default(CUSTOMER)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+  @@index([userId])
+  @@index([orgId])
+}
+
+model Branch {
+  id         String        @id @default(uuid())
+  orgId      String
+  name       String
+  billingId  String
+  shippingId String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  org        Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  billing    Address       @relation("BillingAddress", fields: [billingId], references: [id], onDelete: Cascade)
+  shipping   Address       @relation("ShippingAddress", fields: [shippingId], references: [id], onDelete: Cascade)
+  employees  Employee[]
+
+  @@index([orgId])
+  @@index([createdAt])
+}
+
+model Address {
+  id               String    @id @default(uuid())
+  line1            String
+  line2            String?
+  city             String
+  postalCode       String
+  country          String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  billingBranches  Branch[]  @relation("BillingAddress")
+  shippingBranches Branch[]  @relation("ShippingAddress")
+  billingCustomers Customer[] @relation("BillingAddress")
+  shippingCustomers Customer[] @relation("ShippingAddress")
+  billingOrders    Order[]  @relation("BillingAddress")
+  shippingOrders   Order[]  @relation("ShippingAddress")
+}
+
+model Product {
+  id            String      @id @default(uuid())
+  sku           String      @unique
+  slug          String      @unique
+  name          String
+  description   String?
+  priceCents    Int
+  currency      String      @default("USD")
+  vatRate       Float       @default(0.0)
+  zohoItemId    String?     @unique
+  
+  // Additional identifiers
+  ean           String?
+  upc           String?
+  isbn          String?
+  partNumber    String?
+  
+  // Brand and manufacturer
+  brand         String?
+  manufacturer  String?
+  
+  // Category
+  categoryId    String?
+  categoryName  String?
+  unit          String      @default("unit")
+  
+  // Status
+  status        String      @default("active") // active, inactive
+  source        String?
+  itemType      String?
+  productType   String?
+  
+  // Pricing
+  purchaseRate  Float?
+  
+  // Tax information
+  taxId         String?
+  taxName       String?
+  taxPercentage Float?
+  isTaxable     Boolean     @default(false)
+  taxExemptionId String?
+  taxExemptionCode String?
+  taxCategoryCode String?
+  taxCategoryName String?
+  
+  // Inventory
+  stock         Int         @default(0)
+  trackInventory Boolean    @default(false)
+  canBeSold     Boolean     @default(true)
+  canBePurchased Boolean    @default(true)
+  isReturnable  Boolean     @default(true)
+  trackBatchNumber Boolean  @default(false)
+  isStorageLocationEnabled Boolean @default(false)
+  
+  // Zoho CRM integration
+  isLinkedWithZohoCRM Boolean @default(false)
+  zcrmProductId String?
+  purchaseAccountId String?
+  purchaseAccountName String?
+  accountId     String?
+  accountName   String?
+  purchaseDescription String?
+  
+  // Storefront
+  isVisible     Boolean     @default(true)
+  showInStorefront Boolean  @default(false)
+  
+  // Physical attributes
+  length        Float?
+  width         Float?
+  height        Float?
+  weight        Float?
+  weightUnit    String?
+  dimensionUnit String?
+  
+  // Product flags
+  isComboProduct Boolean    @default(false)
+  hasAttachment Boolean     @default(false)
+  
+  // Image
+  imageName     String?
+  imageType     String?
+  imageDocumentId String?
+  
+  // Tags and dietary info
+  tags          String[]
+  allergenInfo  String?
+  dietTypes     String[]
+  
+  // Sync tracking
+  lastStockSync DateTime?
+  zohoCreatedTime DateTime?
+  zohoLastModifiedTime DateTime?
+  
+  // Timestamps
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  // Relations
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  @@index([createdAt])
+  @@index([isVisible])
+  @@index([status])
+  @@index([categoryName])
+}
+
+model Customer {
+  id            String      @id @default(uuid())
+  orgId         String
+  email         String
+  firstName     String?
+  lastName      String?
+  phone         String?
+  zohoContactId String?     @unique
+  billingId     String?
+  shippingId    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  billing       Address?    @relation("BillingAddress", fields: [billingId], references: [id])
+  shipping      Address?    @relation("ShippingAddress", fields: [shippingId], references: [id])
+  orders        Order[]
+
+  @@unique([orgId, email])
+  @@index([orgId])
+  @@index([email])
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  orgId     String
+  userId    String?
+  sessionId String?
+  currency  String     @default("USD")
+  status    String     @default("active")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+
+  @@index([orgId, userId, status])
+  @@index([sessionId])
+}
+
+model CartItem {
+  id             String   @id @default(uuid())
+  cartId         String
+  productId      String
+  quantity       Int
+  unitPriceCents Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  cart           Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id])
+
+  @@index([cartId])
+}
+
+model Order {
+  id               String         @id @default(uuid())
+  orgId            String
+  branchId         String?
+  customerId       String?
+  number           String         @unique
+  totalCents       Int
+  currency         String         @default("USD")
+  status           OrderStatus    @default(PENDING)
+  paymentId        String?
+  telrTranRef      String?        @unique
+  zohoSalesOrderId String?
+  billingId        String?
+  shippingId       String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  org              Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customer         Customer?      @relation(fields: [customerId], references: [id])
+  billing          Address?       @relation("BillingAddress", fields: [billingId], references: [id])
+  shipping         Address?       @relation("ShippingAddress", fields: [shippingId], references: [id])
+  items            OrderItem[]
+  invoices         Invoice[]
+  webhookEvents    WebhookEvent[]
+
+  @@index([orgId, createdAt])
+  @@index([number])
+  @@index([status])
+  @@index([telrTranRef])
+}
+
+model OrderItem {
+  id             String   @id @default(uuid())
+  orderId        String
+  productId      String
+  quantity       Int
+  unitPriceCents Int
+  subtotalCents  Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  orgId         String
+  orderId       String
+  number        String        @unique
+  pdfUrl        String?
+  zohoInvoiceId String?       @unique
+  status        InvoiceStatus @default(DRAFT)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  order         Order         @relation(fields: [orderId], references: [id])
+  org           Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([number])
+  @@index([status])
+}
+
+model ZohoConnection {
+  id                String        @id @default(uuid())
+  orgId             String        @unique
+  accessToken       String
+  refreshToken      String
+  expiresAt         DateTime
+  region            String        @default("eu")
+  zohoOrganizationId String?
+  scope             String?
+  lastSyncAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  org               Organization  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+model WebhookEvent {
+  id        String        @id @default(uuid())
+  source    String
+  type      String
+  payload   Json
+  orderId   String?
+  status    WebhookStatus @default(PENDING)
+  error     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  order     Order?        @relation(fields: [orderId], references: [id])
+
+  @@index([source, createdAt])
+  @@index([orderId])
+  @@index([status])
+}
+
+model Employee {
+  id         String     @id @default(uuid())
+  orgId      String
+  userId     String?
+  firstName  String
+  lastName   String?
+  email      String?
+  phone      String?
+  role       String     @default("OTHER")
+  branchId   String?
+  branch     Branch?    @relation(fields: [branchId], references: [id])
+  department String?
+  hireDate   DateTime?
+  status     String     @default("ACTIVE")
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([branchId])
+  @@index([status])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  AWAITING_PAYMENT
+  PAID
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  SENT
+  PAID
+  OVERDUE
+  VOID
+}
+
+enum WebhookStatus {
+  PENDING
+  PROCESSED
+  FAILED
+}
+
+enum FoodRestriction {
+  VEGETARIAN
+  VEGAN
+  GLUTEN_FREE
+  DAIRY_FREE
+  NUT_FREE
+  HALAL
+  KOSHER
+  NONE
+}
+
+enum EmployeeRole {
+  CHEF
+  WAITER
+  MANAGER
+  DELIVERY
+  KITCHEN_STAFF
+  OTHER
+}

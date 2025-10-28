@@ -1,0 +1,514 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { BranchSelector } from "@/components/branch-selector";
+import Link from "next/link";
+import { Package2, ShoppingCart, TrendingUp, Eye, Grid3x3, List, Search, Filter } from "lucide-react";
+
+interface Product {
+  id: string;
+  sku: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  priceCents: number;
+  currency: string;
+  stock: number;
+  isVisible: boolean;
+  zohoItemId: string | null;
+  imageName: string | null;
+  brand: string | null;
+  categoryName: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface PaginatedResponse {
+  products: Product[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export default function ProductsPage() {
+  const [data, setData] = useState<PaginatedResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const pageSize = 20;
+
+  const fetchProducts = async (pageNum: number) => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/products?page=${pageNum}&pageSize=${pageSize}&isVisible=true`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch products: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      setData(result);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch products");
+      console.error("Error fetching products:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts(page);
+  }, [page]);
+
+  const formatPrice = (cents: number, currency: string = "AED") => {
+    return new Intl.NumberFormat("en-AE", {
+      style: "currency",
+      currency,
+    }).format(cents / 100);
+  };
+
+  const getStockBadge = (stock: number) => {
+    if (stock === 0) return <Badge variant="destructive">Out of Stock</Badge>;
+    if (stock < 10) return <Badge variant="secondary" className="bg-yellow-500 text-white">Low Stock</Badge>;
+    return <Badge variant="default" className="bg-green-500">In Stock</Badge>;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-lg">
+                <Package2 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  Product Catalog
+                </h1>
+                <p className="text-sm text-gray-600">
+                  {data ? `${data.pagination.total} products available` : 'Browse our collection'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <BranchSelector />
+              <Link href="/dashboard">
+                <Button variant="outline" size="sm">
+                  Dashboard
+                </Button>
+              </Link>
+              <Link href="/test-zoho">
+                <Button variant="default" size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  Sync Zoho
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-8">
+        {/* Toolbar */}
+        <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={viewMode === 'grid' ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : ''}
+              >
+                <Grid3x3 className="w-4 h-4 mr-2" />
+                Grid
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={viewMode === 'list' ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : ''}
+              >
+                <List className="w-4 h-4 mr-2" />
+                List
+              </Button>
+            </div>
+            <div className="text-sm text-gray-600">
+              Page {page} of {data?.pagination.totalPages || 1}
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Card key={i} className="overflow-hidden">
+                <Skeleton className="h-48 w-full" />
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-full mb-3" />
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-2/3" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : error ? (
+          <Card className="max-w-2xl mx-auto shadow-xl border-red-200">
+            <CardContent className="pt-6">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Eye className="w-8 h-8 text-red-600" />
+                </div>
+                <p className="font-semibold text-red-600 mb-2">Error Loading Products</p>
+                <p className="text-gray-600 mb-4">{error}</p>
+                <Button
+                  onClick={() => fetchProducts(page)}
+                  variant="default"
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600"
+                >
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : data && data.products.length > 0 ? (
+          <>
+            {/* Products Grid */}
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+                {data.products.map((product: Product) => (
+                  <Card
+                    key={product.id}
+                    className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-300 overflow-hidden"
+                    onClick={() => setSelectedProduct(product)}
+                  >
+                    {/* Product Image */}
+                    <div className="relative h-56 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
+                      {product.imageName ? (
+                        <img
+                          src={product.imageName}
+                          alt={product.name}
+                          className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-300"
+                          onError={(e) => {
+                            e.currentTarget.parentElement!.innerHTML = `
+                              <div class="w-full h-full flex items-center justify-center">
+                                <div class="text-center">
+                                  <div class="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 flex items-center justify-center">
+                                    <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                    </svg>
+                                  </div>
+                                  <p class="text-xs text-gray-500">No Image</p>
+                                </div>
+                              </div>
+                            `;
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 flex items-center justify-center">
+                              <Package2 className="w-8 h-8 text-gray-500" />
+                            </div>
+                            <p className="text-xs text-gray-500">No Image</p>
+                          </div>
+                        </div>
+                      )}
+                      {product.brand && (
+                        <div className="absolute top-3 left-3">
+                          <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm">
+                            {product.brand}
+                          </Badge>
+                        </div>
+                      )}
+                      {product.categoryName && (
+                        <div className="absolute top-3 right-3">
+                          <Badge variant="outline" className="bg-white/90 backdrop-blur-sm">
+                            {product.categoryName}
+                          </Badge>
+                        </div>
+                      )}
+                    </div>
+
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-lg line-clamp-2 group-hover:text-blue-600 transition-colors">
+                        {product.name}
+                      </CardTitle>
+                      <CardDescription className="text-xs font-mono">
+                        SKU: {product.sku}
+                      </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="space-y-3">
+                      {/* Price */}
+                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                        <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                          {formatPrice(product.priceCents, product.currency)}
+                        </p>
+                      </div>
+
+                      {/* Description */}
+                      {product.description && (
+                        <p className="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
+                          {product.description}
+                        </p>
+                      )}
+
+                      {/* Stock & Status */}
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <div>
+                          {getStockBadge(product.stock)}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">Stock</p>
+                          <p className="font-semibold text-gray-900">{product.stock}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4 mb-8">
+                {data.products.map((product: Product) => (
+                  <Card
+                    key={product.id}
+                    className="group hover:shadow-lg transition-all duration-300 cursor-pointer"
+                    onClick={() => setSelectedProduct(product)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-center gap-6">
+                        {/* Image */}
+                        <div className="w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+                          {product.imageName ? (
+                            <img
+                              src={product.imageName}
+                              alt={product.name}
+                              className="w-full h-full object-contain p-2"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package2 className="w-12 h-12 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <div>
+                              <h3 className="text-xl font-semibold group-hover:text-blue-600 transition-colors mb-1">
+                                {product.name}
+                              </h3>
+                              <p className="text-sm text-gray-500 font-mono">SKU: {product.sku}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                                {formatPrice(product.priceCents, product.currency)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {product.description && (
+                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                              {product.description}
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-3">
+                            {getStockBadge(product.stock)}
+                            {product.brand && <Badge variant="secondary">{product.brand}</Badge>}
+                            {product.categoryName && <Badge variant="outline">{product.categoryName}</Badge>}
+                            <span className="text-sm text-gray-500 ml-auto">
+                              Stock: <span className="font-semibold">{product.stock}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {data.pagination.totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(data.pagination.totalPages, 7) }, (_, i) => {
+                    let pageNum;
+                    if (data.pagination.totalPages <= 7) {
+                      pageNum = i + 1;
+                    } else if (page <= 4) {
+                      pageNum = i + 1;
+                    } else if (page >= data.pagination.totalPages - 3) {
+                      pageNum = data.pagination.totalPages - 6 + i;
+                    } else {
+                      pageNum = page - 3 + i;
+                    }
+
+                    return (
+                      <Button
+                        key={i}
+                        variant={pageNum === page ? "default" : "outline"}
+                        onClick={() => setPage(pageNum)}
+                        className={`w-10 ${pageNum === page ? 'bg-gradient-to-r from-blue-600 to-indigo-600' : ''}`}
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
+                  disabled={page === data.pagination.totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
+        ) : (
+          <Card className="max-w-2xl mx-auto shadow-xl">
+            <CardContent className="pt-12 pb-12">
+              <div className="text-center">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Package2 className="w-10 h-10 text-blue-600" />
+                </div>
+                <p className="text-xl font-semibold text-gray-900 mb-2">No Active Products</p>
+                <p className="text-sm text-gray-600 mb-6">
+                  Sync products from Zoho Inventory to get started
+                </p>
+                <Link href="/test-zoho">
+                  <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Sync from Zoho
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </main>
+
+      {/* Product Detail Dialog */}
+      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {selectedProduct && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-2xl">{selectedProduct.name}</DialogTitle>
+                <DialogDescription className="font-mono">SKU: {selectedProduct.sku}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6">
+                {/* Image */}
+                {selectedProduct.imageName && (
+                  <div className="w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden">
+                    <img
+                      src={selectedProduct.imageName}
+                      alt={selectedProduct.name}
+                      className="w-full h-full object-contain p-4"
+                    />
+                  </div>
+                )}
+
+                {/* Price & Stock */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+                    <p className="text-sm text-gray-600 mb-1">Price</p>
+                    <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                      {formatPrice(selectedProduct.priceCents, selectedProduct.currency)}
+                    </p>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border border-green-100">
+                    <p className="text-sm text-gray-600 mb-1">Stock Level</p>
+                    <p className="text-3xl font-bold text-green-600">
+                      {selectedProduct.stock}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {selectedProduct.description && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Description</h4>
+                    <p className="text-gray-600">{selectedProduct.description}</p>
+                  </div>
+                )}
+
+                {/* Details */}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  {selectedProduct.brand && (
+                    <div>
+                      <p className="text-gray-500">Brand</p>
+                      <p className="font-semibold">{selectedProduct.brand}</p>
+                    </div>
+                  )}
+                  {selectedProduct.categoryName && (
+                    <div>
+                      <p className="text-gray-500">Category</p>
+                      <p className="font-semibold">{selectedProduct.categoryName}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-gray-500">Status</p>
+                    <Badge className="mt-1">{getStockBadge(selectedProduct.stock)}</Badge>
+                  </div>
+                  {selectedProduct.zohoItemId && (
+                    <div>
+                      <p className="text-gray-500">Source</p>
+                      <Badge variant="outline" className="mt-1">Zoho Inventory</Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4 border-t">
+                  <Button className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600">
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Add to Cart
+                  </Button>
+                  <Button variant="outline" className="flex-1">
+                    <Eye className="w-4 h-4 mr-2" />
+                    View Details
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

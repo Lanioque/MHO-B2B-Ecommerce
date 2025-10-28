@@ -1,0 +1,21 @@
+node_modules
+.next
+out
+dist
+build
+coverage
+.git
+.env.local
+.env*.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store
+.DS_Store
+
+# Ignore everything except what we need
+*
+!package.json
+!pnpm-lock.yaml
+
