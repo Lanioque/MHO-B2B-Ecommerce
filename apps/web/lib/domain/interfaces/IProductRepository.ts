@@ -10,6 +10,7 @@ export interface ProductFilter {
   status?: string;
   categoryName?: string;
   hasImage?: boolean;
+  search?: string; // Search by name or SKU
 }
 
 export interface PaginationOptions {

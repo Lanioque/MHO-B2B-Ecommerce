@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { BranchSelector } from "@/components/branch-selector";
 import { CartButton } from "@/components/cart/cart-button";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { QuantityControls } from "@/components/cart/quantity-controls";
 import { useCart } from "@/lib/hooks/use-cart";
 import Link from "next/link";
-import { Package2, ShoppingCart, TrendingUp, Eye, Grid3x3, List, Search, Filter, Plus, Check } from "lucide-react";
+import { Package2, ShoppingCart, TrendingUp, Eye, Grid3x3, List, Search as SearchIcon, Filter, Plus, Check, X } from "lucide-react";
 
 interface Product {
   id: string;
@@ -58,6 +59,7 @@ export default function ProductsPage() {
   const { addItem, openDrawer } = useCart();
   const [orgId, setOrgId] = useState<string | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Fetch organization ID and branch ID from selected branch or user context
   useEffect(() => {
@@ -120,12 +122,15 @@ export default function ProductsPage() {
     fetchOrgId();
   }, []);
 
-  const fetchProducts = async (pageNum: number) => {
+  const fetchProducts = async (pageNum: number, search?: string) => {
     try {
       setLoading(true);
-      const response = await fetch(
-        `/api/products?page=${pageNum}&pageSize=${pageSize}&isVisible=true`
-      );
+      let url = `/api/products?page=${pageNum}&pageSize=${pageSize}&isVisible=true`;
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+      
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch products: ${response.statusText}`);
@@ -142,9 +147,27 @@ export default function ProductsPage() {
     }
   };
 
+  // Debounced search - wait for user to stop typing
   useEffect(() => {
-    if (orgId) {
-      fetchProducts(page);
+    if (!orgId) return;
+
+    const timer = setTimeout(() => {
+      if (searchQuery) {
+        setPage(1); // Reset to first page when searching
+        fetchProducts(1, searchQuery);
+      } else {
+        // If search cleared, fetch current page
+        fetchProducts(page, "");
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, orgId]);
+
+  // Fetch products when page or orgId changes (when not searching)
+  useEffect(() => {
+    if (orgId && !searchQuery) {
+      fetchProducts(page, "");
     }
   }, [page, orgId]);
 
@@ -208,6 +231,25 @@ export default function ProductsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* Search Bar */}
+              <div className="relative hidden sm:block">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  type="text"
+                  placeholder="Search by name, SKU, category, brand, tags..."
+                  value={searchQuery}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-10 w-64"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               {orgId && <CartButton orgId={orgId} branchId={branchId || undefined} />}
               <BranchSelector onBranchChange={async (newBranchId) => {
                 // Update branchId state and localStorage

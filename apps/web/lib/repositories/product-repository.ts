@@ -62,6 +62,26 @@ export class ProductRepository implements IProductRepository {
       where.imageName = { not: null };
     }
 
+    // Add search functionality - search across multiple fields
+    if (filter.search) {
+      const searchTerm = filter.search;
+      where.OR = [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { sku: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+        { categoryName: { contains: searchTerm, mode: 'insensitive' } },
+        { brand: { contains: searchTerm, mode: 'insensitive' } },
+        { manufacturer: { contains: searchTerm, mode: 'insensitive' } },
+        { partNumber: { contains: searchTerm, mode: 'insensitive' } },
+        { ean: { contains: searchTerm, mode: 'insensitive' } },
+        { upc: { contains: searchTerm, mode: 'insensitive' } },
+        { isbn: { contains: searchTerm, mode: 'insensitive' } },
+        { slug: { contains: searchTerm, mode: 'insensitive' } },
+        // Search in tags array - exact match (Prisma limitation for array fields)
+        { tags: { has: searchTerm } },
+      ];
+    }
+
     const skip = (pagination.page - 1) * pagination.pageSize;
 
     const [items, total] = await Promise.all([
@@ -146,6 +166,27 @@ export class ProductRepository implements IProductRepository {
 
     if (filter.hasImage) {
       where.imageName = { not: null };
+    }
+
+    // Add search functionality - search across multiple fields
+    if (filter.search) {
+      const searchTerm = filter.search;
+      where.OR = [
+        { name: { contains: searchTerm, mode: 'insensitive' } },
+        { sku: { contains: searchTerm, mode: 'insensitive' } },
+        { description: { contains: searchTerm, mode: 'insensitive' } },
+        { categoryName: { contains: searchTerm, mode: 'insensitive' } },
+        { brand: { contains: searchTerm, mode: 'insensitive' } },
+        { manufacturer: { contains: searchTerm, mode: 'insensitive' } },
+        { partNumber: { contains: searchTerm, mode: 'insensitive' } },
+        { ean: { contains: searchTerm, mode: 'insensitive' } },
+        { upc: { contains: searchTerm, mode: 'insensitive' } },
+        { isbn: { contains: searchTerm, mode: 'insensitive' } },
+        { slug: { contains: searchTerm, mode: 'insensitive' } },
+        // Search in tags array - check if any tag contains the search term
+        { tags: { hasSome: [searchTerm] } },
+        { tags: { has: searchTerm } },
+      ];
     }
 
     return this.db.product.count({ where });

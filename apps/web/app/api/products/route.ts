@@ -15,10 +15,12 @@ async function getProductsHandler(req: NextRequest) {
 
   // Parse filters
   const isVisible = req.nextUrl.searchParams.get("isVisible");
+  const search = req.nextUrl.searchParams.get("search") || undefined;
   const filter = {
     isVisible: isVisible !== null ? isVisible === "true" : undefined,
     status: 'active',
     hasImage: true,
+    search,
   };
 
   // Parse pagination
