@@ -22,10 +22,30 @@ interface BranchSelectorProps {
 export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelectorProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBranch, setSelectedBranch] = useState<string>(currentBranchId || "");
+  
+  // Initialize from localStorage or prop
+  const getInitialBranch = () => {
+    if (currentBranchId) return currentBranchId;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem("currentBranchId") || "";
+    }
+    return "";
+  };
+  
+  const [selectedBranch, setSelectedBranch] = useState<string>(getInitialBranch());
 
   useEffect(() => {
     fetchBranches();
+  }, []);
+  
+  // Sync with localStorage changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedBranch = localStorage.getItem("currentBranchId");
+      if (storedBranch && storedBranch !== selectedBranch) {
+        setSelectedBranch(storedBranch);
+      }
+    }
   }, []);
 
   const fetchBranches = async () => {
@@ -72,10 +92,22 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
       
       setBranches(data.branches);
       
-      // Set initial branch if not set
-      if (!selectedBranch && data.branches && data.branches.length > 0) {
-        setSelectedBranch(data.branches[0].id);
-        localStorage.setItem("currentBranchId", data.branches[0].id);
+      // Set initial branch if not set - check localStorage first
+      const storedBranchId = localStorage.getItem("currentBranchId");
+      let initialBranchId = currentBranchId || selectedBranch || storedBranchId;
+      
+      // Validate that the stored/selected branch exists in the fetched branches
+      if (initialBranchId && !data.branches.find(b => b.id === initialBranchId)) {
+        initialBranchId = null;
+      }
+      
+      if (!initialBranchId && data.branches && data.branches.length > 0) {
+        initialBranchId = data.branches[0].id;
+        localStorage.setItem("currentBranchId", initialBranchId);
+      }
+      
+      if (initialBranchId && initialBranchId !== selectedBranch) {
+        setSelectedBranch(initialBranchId);
       }
     } catch (error) {
       console.error("Error fetching branches:", error);
@@ -84,14 +116,26 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
     }
   };
 
-  const handleChange = (value: string) => {
+  const handleChange = async (value: string) => {
     setSelectedBranch(value);
     localStorage.setItem("currentBranchId", value);
+    
+    // Fetch branch to get orgId
+    try {
+      const branchResponse = await fetch(`/api/branches/${value}`, { credentials: "include" });
+      if (branchResponse.ok) {
+        const branchData = await branchResponse.json();
+        if (branchData.branch?.orgId) {
+          localStorage.setItem("currentOrgId", branchData.branch.orgId);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch branch org:", err);
+    }
+    
     if (onBranchChange) {
       onBranchChange(value);
     }
-    // Reload page to apply changes
-    window.location.reload();
   };
 
   if (loading) {

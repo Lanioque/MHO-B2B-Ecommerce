@@ -73,12 +73,13 @@ async function ensureOrganization(orgId: string): Promise<string> {
 /**
  * Helper to get cart identifier (user or session)
  */
-async function getCartIdentifier(orgId: string): Promise<CartIdentifier> {
+async function getCartIdentifier(orgId: string, branchId?: string): Promise<CartIdentifier> {
   const session = await auth();
 
   if (session?.user?.id) {
     return {
       orgId,
+      branchId,
       userId: session.user.id,
     };
   }
@@ -87,6 +88,7 @@ async function getCartIdentifier(orgId: string): Promise<CartIdentifier> {
   const sessionId = await getOrCreateSessionId();
   return {
     orgId,
+    branchId,
     sessionId,
   };
 }
@@ -98,8 +100,10 @@ async function getCartIdentifier(orgId: string): Promise<CartIdentifier> {
 async function getCartHandler(req: NextRequest) {
   const cartService = createCartService();
 
-  // Get organization ID from query params
+  // Get organization ID and branch ID from query params
   const orgId = req.nextUrl.searchParams.get('orgId');
+  const branchId = req.nextUrl.searchParams.get('branchId') || undefined;
+  
   if (!orgId) {
     return NextResponse.json(
       { error: 'Organization ID is required' },
@@ -111,7 +115,7 @@ async function getCartHandler(req: NextRequest) {
   const finalOrgId = await ensureOrganization(orgId);
 
   // Get cart identifier
-  const identifier = await getCartIdentifier(finalOrgId);
+  const identifier = await getCartIdentifier(finalOrgId, branchId);
 
   // Get or create cart
   const cart = await cartService.getCart(identifier);
@@ -131,8 +135,10 @@ async function addToCartHandler(req: NextRequest) {
   // Validate request body
   const validated = await validateRequestBody(req, AddToCartSchema);
 
-  // Get organization ID from body or query
-  const orgId = validated.branchId || req.nextUrl.searchParams.get('orgId');
+  // Get organization ID and branch ID from query params
+  const orgId = req.nextUrl.searchParams.get('orgId');
+  const branchId = req.nextUrl.searchParams.get('branchId') || undefined;
+  
   if (!orgId) {
     return NextResponse.json(
       { error: 'Organization ID is required' },
@@ -144,7 +150,7 @@ async function addToCartHandler(req: NextRequest) {
   const finalOrgId = await ensureOrganization(orgId);
 
   // Get cart identifier
-  const identifier = await getCartIdentifier(finalOrgId);
+  const identifier = await getCartIdentifier(finalOrgId, branchId);
 
   // Add item to cart
   const cart = await cartService.addItemToCart(
@@ -166,8 +172,10 @@ async function addToCartHandler(req: NextRequest) {
 async function clearCartHandler(req: NextRequest) {
   const cartService = createCartService();
 
-  // Get organization ID from query params
+  // Get organization ID and branch ID from query params
   const orgId = req.nextUrl.searchParams.get('orgId');
+  const branchId = req.nextUrl.searchParams.get('branchId') || undefined;
+  
   if (!orgId) {
     return NextResponse.json(
       { error: 'Organization ID is required' },
@@ -179,7 +187,7 @@ async function clearCartHandler(req: NextRequest) {
   const finalOrgId = await ensureOrganization(orgId);
 
   // Get cart identifier
-  const identifier = await getCartIdentifier(finalOrgId);
+  const identifier = await getCartIdentifier(finalOrgId, branchId);
 
   // Clear cart
   await cartService.clearCart(identifier);

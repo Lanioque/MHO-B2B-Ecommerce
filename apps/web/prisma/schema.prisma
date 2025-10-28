@@ -67,6 +67,7 @@ model Branch {
   billing    Address       @relation("BillingAddress", fields: [billingId], references: [id], onDelete: Cascade)
   shipping   Address       @relation("ShippingAddress", fields: [shippingId], references: [id], onDelete: Cascade)
   employees  Employee[]
+  carts      Cart[]
 
   @@index([orgId])
   @@index([createdAt])
@@ -222,6 +223,7 @@ model Customer {
 model Cart {
   id        String     @id @default(uuid())
   orgId     String
+  branchId  String?
   userId    String?
   sessionId String?
   currency  String     @default("USD")
@@ -229,10 +231,13 @@ model Cart {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  branch    Branch?     @relation(fields: [branchId], references: [id], onDelete: Cascade)
   items     CartItem[]
 
   @@index([orgId, userId, status])
+  @@index([orgId, branchId, userId, status])
   @@index([sessionId])
+  @@index([branchId])
 }
 
 model CartItem {

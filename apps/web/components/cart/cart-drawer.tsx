@@ -14,9 +14,10 @@ import Link from 'next/link';
 
 interface CartDrawerProps {
   orgId: string;
+  branchId?: string;
 }
 
-export function CartDrawer({ orgId }: CartDrawerProps) {
+export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
   const {
     cart,
     isDrawerOpen,
@@ -29,9 +30,9 @@ export function CartDrawer({ orgId }: CartDrawerProps) {
   // Fetch cart when drawer opens
   useEffect(() => {
     if (isDrawerOpen && !cart) {
-      fetchCart(orgId);
+      fetchCart(orgId, branchId);
     }
-  }, [isDrawerOpen, orgId, cart, fetchCart]);
+  }, [isDrawerOpen, orgId, branchId, cart, fetchCart]);
 
   const formatPrice = (cents: number) => {
     return new Intl.NumberFormat('en-AE', {

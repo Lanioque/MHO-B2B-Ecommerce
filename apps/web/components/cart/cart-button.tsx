@@ -13,16 +13,17 @@ import { Badge } from '@/components/ui/badge';
 
 interface CartButtonProps {
   orgId: string;
+  branchId?: string;
   variant?: 'default' | 'outline' | 'ghost';
 }
 
-export function CartButton({ orgId, variant = 'outline' }: CartButtonProps) {
+export function CartButton({ orgId, branchId, variant = 'outline' }: CartButtonProps) {
   const { itemCount, toggleDrawer, fetchCart } = useCart();
 
   // Fetch cart on mount
   useEffect(() => {
-    fetchCart(orgId);
-  }, [orgId, fetchCart]);
+    fetchCart(orgId, branchId);
+  }, [orgId, branchId, fetchCart]);
 
   return (
     <Button

@@ -22,11 +22,11 @@ interface CartActions {
   toggleDrawer: () => void;
   
   // API actions
-  fetchCart: (orgId: string) => Promise<void>;
-  addItem: (productId: string, quantity: number, orgId: string) => Promise<void>;
+  fetchCart: (orgId: string, branchId?: string) => Promise<void>;
+  addItem: (productId: string, quantity: number, orgId: string, branchId?: string) => Promise<void>;
   updateQuantity: (itemId: string, quantity: number) => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
-  clearCart: (orgId: string) => Promise<void>;
+  clearCart: (orgId: string, branchId?: string) => Promise<void>;
 }
 
 type CartStore = CartState & CartActions;
@@ -89,10 +89,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
   toggleDrawer: () => set((state) => ({ isDrawerOpen: !state.isDrawerOpen })),
 
   // API actions
-  fetchCart: async (orgId: string) => {
+  fetchCart: async (orgId: string, branchId?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const data = await fetchApi(`/api/cart?orgId=${orgId}`);
+      const url = branchId 
+        ? `/api/cart?orgId=${orgId}&branchId=${branchId}`
+        : `/api/cart?orgId=${orgId}`;
+      const data = await fetchApi(url);
       set({ cart: data.cart, isLoading: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch cart';
@@ -101,10 +104,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }
   },
 
-  addItem: async (productId: string, quantity: number, orgId: string) => {
+  addItem: async (productId: string, quantity: number, orgId: string, branchId?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const data = await fetchApi(`/api/cart?orgId=${orgId}`, {
+      const url = branchId 
+        ? `/api/cart?orgId=${orgId}&branchId=${branchId}`
+        : `/api/cart?orgId=${orgId}`;
+      const data = await fetchApi(url, {
         method: 'POST',
         body: JSON.stringify({ productId, quantity }),
       });
@@ -191,10 +197,13 @@ export const useCartStore = create<CartStore>((set, get) => ({
     }
   },
 
-  clearCart: async (orgId: string) => {
+  clearCart: async (orgId: string, branchId?: string) => {
     set({ isLoading: true, error: null });
     try {
-      await fetchApi(`/api/cart?orgId=${orgId}`, {
+      const url = branchId 
+        ? `/api/cart?orgId=${orgId}&branchId=${branchId}`
+        : `/api/cart?orgId=${orgId}`;
+      await fetchApi(url, {
         method: 'DELETE',
       });
       set({ cart: null, isLoading: false });

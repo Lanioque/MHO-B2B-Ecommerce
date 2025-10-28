@@ -27,6 +27,14 @@ export class CartRepository implements ICartRepository {
       status: 'active',
     };
 
+    // Include branchId in the query if provided
+    if (identifier.branchId) {
+      where.branchId = identifier.branchId;
+    } else {
+      // If no branchId, only match carts without a branch
+      where.branchId = null;
+    }
+
     if (identifier.userId) {
       where.userId = identifier.userId;
     } else if (identifier.sessionId) {
@@ -53,6 +61,11 @@ export class CartRepository implements ICartRepository {
       orgId: identifier.orgId,
       status: 'active',
     };
+
+    // Include branchId if provided
+    if (identifier.branchId) {
+      data.branchId = identifier.branchId;
+    }
 
     if (identifier.userId) {
       data.userId = identifier.userId;

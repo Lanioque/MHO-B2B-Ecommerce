@@ -57,19 +57,23 @@ export default function ProductsPage() {
 
   const { addItem, openDrawer } = useCart();
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [branchId, setBranchId] = useState<string | null>(null);
 
-  // Fetch organization ID from selected branch or user context
+  // Fetch organization ID and branch ID from selected branch or user context
   useEffect(() => {
     const fetchOrgId = async () => {
       try {
         // First check if we have a selected branch
-        const branchId = localStorage.getItem("currentBranchId");
+        const storedBranchId = localStorage.getItem("currentBranchId");
+        if (storedBranchId) {
+          setBranchId(storedBranchId);
+        }
         let currentOrgId = localStorage.getItem("currentOrgId");
         
         // If branch is selected, fetch branch to get orgId
-        if (branchId && !currentOrgId) {
+        if (storedBranchId && !currentOrgId) {
           try {
-            const branchResponse = await fetch(`/api/branches/${branchId}`, { credentials: "include" });
+            const branchResponse = await fetch(`/api/branches/${storedBranchId}`, { credentials: "include" });
             if (branchResponse.ok) {
               const branchData = await branchResponse.json();
               const branchOrgId = branchData.branch?.orgId;
@@ -139,8 +143,10 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    fetchProducts(page);
-  }, [page]);
+    if (orgId) {
+      fetchProducts(page);
+    }
+  }, [page, orgId]);
 
   const formatPrice = (cents: number, currency: string = "AED") => {
     return new Intl.NumberFormat("en-AE", {
@@ -163,7 +169,7 @@ export default function ProductsPage() {
     
     setAddingToCart(productId);
     try {
-      await addItem(productId, quantity, orgId);
+      await addItem(productId, quantity, orgId, branchId || undefined);
       setJustAdded(productId);
       setTimeout(() => setJustAdded(null), 2000);
       openDrawer();
@@ -202,16 +208,23 @@ export default function ProductsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {orgId && <CartButton orgId={orgId} />}
-              <BranchSelector onBranchChange={async (branchId) => {
+              {orgId && <CartButton orgId={orgId} branchId={branchId || undefined} />}
+              <BranchSelector onBranchChange={async (newBranchId) => {
+                // Update branchId state and localStorage
+                setBranchId(newBranchId);
+                localStorage.setItem("currentBranchId", newBranchId);
+                
                 // Fetch branch to get orgId when branch changes
                 try {
-                  const branchResponse = await fetch(`/api/branches/${branchId}`, { credentials: "include" });
+                  const branchResponse = await fetch(`/api/branches/${newBranchId}`, { credentials: "include" });
                   if (branchResponse.ok) {
                     const branchData = await branchResponse.json();
                     if (branchData.branch?.orgId) {
-                      setOrgId(branchData.branch.orgId);
-                      localStorage.setItem("currentOrgId", branchData.branch.orgId);
+                      const newOrgId = branchData.branch.orgId;
+                      setOrgId(newOrgId);
+                      localStorage.setItem("currentOrgId", newOrgId);
+                      // Reset to first page and refetch products
+                      setPage(1);
                     }
                   }
                 } catch (err) {
@@ -644,7 +657,7 @@ export default function ProductsPage() {
       </Dialog>
 
       {/* Cart Drawer */}
-      {orgId ? <CartDrawer orgId={orgId} /> : null}
+      {orgId ? <CartDrawer orgId={orgId} branchId={branchId || undefined} /> : null}
     </div>
   );
 }
