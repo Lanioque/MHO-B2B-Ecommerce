@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+dist
+build
+.git
+*.log
+
+# Ignore other apps
+apps/*
+!apps/web
+

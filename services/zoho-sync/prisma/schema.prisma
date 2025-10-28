@@ -1,0 +1,62 @@
+// Shared Prisma schema - references the main schema
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/zoho-sync-client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Import from main schema
+model Organization {
+  id                String   @id @default(uuid())
+  name              String
+  vatNumber         String?
+  employeeCount     Int?
+  supportedDietTypes String[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Products are global, not per-org
+  zohoConnection    ZohoConnection?
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  sku           String   @unique
+  slug          String   @unique
+  name          String
+  description   String?
+  priceCents    Int
+  currency      String   @default("USD")
+  vatRate       Float    @default(0.0)
+  zohoItemId    String?  @unique
+  stock         Int      @default(0)
+  lastStockSync DateTime?
+  isVisible     Boolean  @default(true)
+  dietTypes     String[]
+  allergenInfo  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([isVisible])
+}
+
+model ZohoConnection {
+  id           String   @id @default(uuid())
+  orgId        String   @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  region       String   @default("eu")
+  scope        String?
+  lastSyncAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  org Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
