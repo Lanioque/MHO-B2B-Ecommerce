@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PermissionError, UnauthorizedError, NotFoundError } from "@/lib/errors";
 import { Session } from "next-auth";
+import { cookies } from "next/headers";
+import { v4 as uuidv4 } from "uuid";
 
 export enum Role {
   OWNER = "OWNER",
@@ -32,8 +34,16 @@ export class SessionHelper {
     return this.session.user.email;
   }
 
-  getMembership(orgId: string) {
+  getMembership(orgId?: string) {
+    // If no orgId provided, return first membership
+    if (!orgId) {
+      return this.session.user.memberships[0] || null;
+    }
     return this.session.user.memberships.find((m) => m.orgId === orgId);
+  }
+
+  getAllMemberships() {
+    return this.session.user.memberships;
   }
 
   hasMembership(orgId: string): boolean {
@@ -112,5 +122,49 @@ export async function getOrgContext(orgId: string) {
     membership,
     org,
   };
+}
+
+/**
+ * Session ID management for guest users (carts, etc.)
+ */
+const SESSION_COOKIE_NAME = 'guest-session-id';
+const SESSION_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
+
+/**
+ * Get or create a session ID for guest users
+ * Returns the session ID from cookie or creates a new one
+ */
+export async function getOrCreateSessionId(): Promise<string> {
+  const cookieStore = await cookies();
+  let sessionId = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!sessionId) {
+    sessionId = uuidv4();
+    cookieStore.set(SESSION_COOKIE_NAME, sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: SESSION_COOKIE_MAX_AGE,
+      path: '/',
+    });
+  }
+
+  return sessionId;
+}
+
+/**
+ * Get session ID if it exists (doesn't create new one)
+ */
+export async function getSessionId(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(SESSION_COOKIE_NAME)?.value || null;
+}
+
+/**
+ * Clear session ID cookie
+ */
+export async function clearSessionId(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE_NAME);
 }
 

@@ -26,9 +26,11 @@ export default auth((req) => {
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/webhooks") ||
     pathname.startsWith("/api/health") ||
+    pathname.startsWith("/api/cart") || // Allow guest cart access
     pathname === "/" ||
     pathname.startsWith("/catalog") ||
     pathname.startsWith("/product/") ||
+    pathname.startsWith("/products") ||
     pathname.startsWith("/cart") ||
     pathname.startsWith("/checkout") ||
     pathname.startsWith("/login") ||

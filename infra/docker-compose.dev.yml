@@ -46,16 +46,22 @@ services:
       - NEXTAUTH_SECRET=development-secret-change-in-production
       - TELR_MODE=test
       - ZOHO_REGION=eu
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=1000
+      - WATCHPACK_POLLING_INTERVAL=1000
     volumes:
-      - ../apps/web:/app/apps/web
+      - ../apps/web:/app/apps/web:cached
       - /app/apps/web/node_modules
       - /app/apps/web/.next
+      - ../pnpm-workspace.yaml:/app/pnpm-workspace.yaml:ro
+      - ../pnpm-lock.yaml:/app/pnpm-lock.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: sh -c "pnpm prisma migrate deploy && pnpm dev"
+    command: sh -c "pnpm prisma migrate deploy && pnpm dev --turbo"
     restart: unless-stopped
 
 volumes:

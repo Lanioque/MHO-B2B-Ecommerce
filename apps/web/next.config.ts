@@ -1,7 +1,33 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable Turbopack for faster hot reload
   reactCompiler: true,
+  
+  // Turbopack configuration for better file watching in Docker
+  turbopack: {
+    resolveAlias: {
+      // Ensure proper module resolution
+    },
+  },
+  
+  // Watch options for better file watching (when using webpack fallback)
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: ['**/node_modules', '**/.git', '**/.next'],
+      };
+    }
+    return config;
+  },
+  
+  // Development optimizations
+  experimental: {
+    // Enable faster refresh
+    optimizePackageImports: ['lucide-react'],
+  },
   
   // Security headers for production
   async headers() {

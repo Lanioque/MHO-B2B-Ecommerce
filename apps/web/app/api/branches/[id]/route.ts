@@ -1,0 +1,112 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireAuth, requireRole, Role } from "@/lib/auth-helpers";
+import { createBranchService } from "@/lib/services/branch-service";
+import { withErrorHandler } from "@/lib/middleware/error-handler";
+import { validateRequestBody } from "@/lib/middleware/validation";
+import { z } from "zod";
+
+const updateBranchSchema = z.object({
+  name: z.string().min(1).optional(),
+  billing: z.object({
+    line1: z.string(),
+    line2: z.string().optional(),
+    city: z.string(),
+    postalCode: z.string(),
+    country: z.string(),
+  }).optional(),
+  shipping: z.object({
+    line1: z.string(),
+    line2: z.string().optional(),
+    city: z.string(),
+    postalCode: z.string(),
+    country: z.string(),
+  }).optional(),
+});
+
+/**
+ * GET /api/branches/[id]
+ * Get a specific branch by ID
+ */
+async function getBranchHandler(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  await requireAuth();
+  const branchService = createBranchService();
+  const { id } = await params;
+
+  const branch = await branchService.getBranchById(id);
+
+  if (!branch) {
+    return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+  }
+
+  // Verify user has access to the branch's organization
+  await requireRole(branch.orgId, Role.CUSTOMER);
+
+  return NextResponse.json({ branch });
+}
+
+/**
+ * PUT /api/branches/[id]
+ * Update a specific branch
+ */
+async function updateBranchHandler(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  await requireAuth();
+  const branchService = createBranchService();
+  const { id } = await params;
+
+  // Get existing branch to check orgId
+  const existingBranch = await branchService.getBranchById(id);
+
+  if (!existingBranch) {
+    return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+  }
+
+  // Verify user has admin access to the organization
+  await requireRole(existingBranch.orgId, Role.ADMIN);
+
+  // Validate request body
+  const validated = await validateRequestBody(req, updateBranchSchema);
+
+  // Update branch
+  const updatedBranch = await branchService.updateBranch(id, validated);
+
+  return NextResponse.json({ branch: updatedBranch });
+}
+
+/**
+ * DELETE /api/branches/[id]
+ * Delete a specific branch
+ */
+async function deleteBranchHandler(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  await requireAuth();
+  const branchService = createBranchService();
+  const { id } = await params;
+
+  // Get existing branch to check orgId
+  const existingBranch = await branchService.getBranchById(id);
+
+  if (!existingBranch) {
+    return NextResponse.json({ error: "Branch not found" }, { status: 404 });
+  }
+
+  // Verify user has admin access to the organization
+  await requireRole(existingBranch.orgId, Role.ADMIN);
+
+  // Delete branch
+  await branchService.deleteBranch(id);
+
+  return NextResponse.json({ success: true, message: "Branch deleted successfully" });
+}
+
+export const GET = withErrorHandler(getBranchHandler);
+export const PUT = withErrorHandler(updateBranchHandler);
+export const DELETE = withErrorHandler(deleteBranchHandler);
+

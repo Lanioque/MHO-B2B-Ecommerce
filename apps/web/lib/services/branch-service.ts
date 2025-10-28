@@ -77,6 +77,114 @@ export class BranchService {
         billing: true,
         shipping: true,
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Get branch by ID
+   */
+  async getBranchById(
+    branchId: string
+  ): Promise<(Branch & { billing: Address; shipping: Address }) | null> {
+    const client = this.unitOfWork.getClient();
+    return client.branch.findUnique({
+      where: { id: branchId },
+      include: {
+        billing: true,
+        shipping: true,
+      },
+    });
+  }
+
+  /**
+   * Update branch with addresses atomically
+   * Uses transaction to ensure consistency
+   */
+  async updateBranch(
+    branchId: string,
+    data: Partial<CreateBranchData>
+  ): Promise<Branch & { billing: Address; shipping: Address }> {
+    return this.unitOfWork.execute(async (tx) => {
+      // Get existing branch
+      const existingBranch = await tx.branch.findUnique({
+        where: { id: branchId },
+        include: { billing: true, shipping: true },
+      });
+
+      if (!existingBranch) {
+        throw new Error('Branch not found');
+      }
+
+      // Update name if provided
+      if (data.name) {
+        await tx.branch.update({
+          where: { id: branchId },
+          data: { name: data.name },
+        });
+      }
+
+      // Update billing address if provided
+      if (data.billing) {
+        await tx.address.update({
+          where: { id: existingBranch.billingId },
+          data: data.billing,
+        });
+      }
+
+      // Update shipping address if provided
+      if (data.shipping) {
+        await tx.address.update({
+          where: { id: existingBranch.shippingId },
+          data: data.shipping,
+        });
+      }
+
+      // Return updated branch
+      return tx.branch.findUnique({
+        where: { id: branchId },
+        include: {
+          billing: true,
+          shipping: true,
+        },
+      }) as Promise<Branch & { billing: Address; shipping: Address }>;
+    });
+  }
+
+  /**
+   * Delete branch and its addresses atomically
+   * Uses transaction to prevent orphaned addresses
+   */
+  async deleteBranch(branchId: string): Promise<void> {
+    return this.unitOfWork.execute(async (tx) => {
+      // Get branch with addresses
+      const branch = await tx.branch.findUnique({
+        where: { id: branchId },
+        include: {
+          billing: true,
+          shipping: true,
+        },
+      });
+
+      if (!branch) {
+        throw new Error('Branch not found');
+      }
+
+      // Delete branch (cascade will handle relations)
+      await tx.branch.delete({
+        where: { id: branchId },
+      });
+
+      // Delete associated addresses
+      await tx.address.deleteMany({
+        where: {
+          id: {
+            in: [branch.billingId, branch.shippingId],
+          },
+        },
+      });
     });
   }
 }

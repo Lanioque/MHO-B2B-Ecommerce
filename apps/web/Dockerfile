@@ -19,6 +19,7 @@ RUN pnpm install --no-frozen-lockfile
 COPY apps/web/prisma ./apps/web/prisma
 COPY apps/web/app ./apps/web/app
 COPY apps/web/lib ./apps/web/lib
+COPY apps/web/components ./apps/web/components
 COPY apps/web/public ./apps/web/public
 COPY apps/web/next.config.ts ./apps/web/
 COPY apps/web/tsconfig.json ./apps/web/

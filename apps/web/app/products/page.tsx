@@ -7,8 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { BranchSelector } from "@/components/branch-selector";
+import { CartButton } from "@/components/cart/cart-button";
+import { CartDrawer } from "@/components/cart/cart-drawer";
+import { QuantityControls } from "@/components/cart/quantity-controls";
+import { useCart } from "@/lib/hooks/use-cart";
 import Link from "next/link";
-import { Package2, ShoppingCart, TrendingUp, Eye, Grid3x3, List, Search, Filter } from "lucide-react";
+import { Package2, ShoppingCart, TrendingUp, Eye, Grid3x3, List, Search, Filter, Plus, Check } from "lucide-react";
 
 interface Product {
   id: string;
@@ -46,7 +50,71 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState<string | null>(null);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
   const pageSize = 20;
+
+  const { addItem, openDrawer } = useCart();
+  const [orgId, setOrgId] = useState<string | null>(null);
+
+  // Fetch organization ID from selected branch or user context
+  useEffect(() => {
+    const fetchOrgId = async () => {
+      try {
+        // First check if we have a selected branch
+        const branchId = localStorage.getItem("currentBranchId");
+        let currentOrgId = localStorage.getItem("currentOrgId");
+        
+        // If branch is selected, fetch branch to get orgId
+        if (branchId && !currentOrgId) {
+          try {
+            const branchResponse = await fetch(`/api/branches/${branchId}`, { credentials: "include" });
+            if (branchResponse.ok) {
+              const branchData = await branchResponse.json();
+              const branchOrgId = branchData.branch?.orgId;
+              if (branchOrgId) {
+                currentOrgId = branchOrgId;
+                localStorage.setItem("currentOrgId", branchOrgId);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch branch:", err);
+          }
+        }
+        
+        // If still no orgId, try localStorage (set by BranchSelector)
+        if (!currentOrgId) {
+          currentOrgId = localStorage.getItem("currentOrgId");
+        }
+        
+        // If still no orgId, try to get from user session
+        if (!currentOrgId) {
+          try {
+            const userResponse = await fetch("/api/me", { credentials: "include" });
+            const userData = await userResponse.json();
+            if (userResponse.ok && userData.user?.memberships?.length > 0) {
+              currentOrgId = userData.user.memberships[0].orgId;
+              if (currentOrgId) {
+                localStorage.setItem("currentOrgId", currentOrgId);
+              }
+            }
+          } catch (err) {
+            console.error("Failed to fetch user org:", err);
+          }
+        }
+        
+        // Fallback to default org from seed if nothing found
+        setOrgId(currentOrgId || '00000000-0000-0000-0000-000000000001');
+      } catch (error) {
+        console.error("Error fetching org ID:", error);
+        // Fallback to default
+        setOrgId('00000000-0000-0000-0000-000000000001');
+      }
+    };
+
+    fetchOrgId();
+  }, []);
 
   const fetchProducts = async (pageNum: number) => {
     try {
@@ -87,6 +155,33 @@ export default function ProductsPage() {
     return <Badge variant="default" className="bg-green-500">In Stock</Badge>;
   };
 
+  const handleAddToCart = async (productId: string, quantity: number = 1) => {
+    if (!orgId) {
+      alert('Please wait for organization to load...');
+      return;
+    }
+    
+    setAddingToCart(productId);
+    try {
+      await addItem(productId, quantity, orgId);
+      setJustAdded(productId);
+      setTimeout(() => setJustAdded(null), 2000);
+      openDrawer();
+    } catch (err) {
+      console.error('Failed to add to cart:', err);
+      alert('Failed to add item to cart');
+    } finally {
+      setAddingToCart(null);
+    }
+  };
+
+  const handleAddToCartFromModal = async () => {
+    if (!selectedProduct) return;
+    await handleAddToCart(selectedProduct.id, selectedQuantity);
+    setSelectedProduct(null);
+    setSelectedQuantity(1);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       {/* Header */}
@@ -107,7 +202,22 @@ export default function ProductsPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <BranchSelector />
+              {orgId && <CartButton orgId={orgId} />}
+              <BranchSelector onBranchChange={async (branchId) => {
+                // Fetch branch to get orgId when branch changes
+                try {
+                  const branchResponse = await fetch(`/api/branches/${branchId}`, { credentials: "include" });
+                  if (branchResponse.ok) {
+                    const branchData = await branchResponse.json();
+                    if (branchData.branch?.orgId) {
+                      setOrgId(branchData.branch.orgId);
+                      localStorage.setItem("currentOrgId", branchData.branch.orgId);
+                    }
+                  }
+                } catch (err) {
+                  console.error("Failed to fetch branch org:", err);
+                }
+              }} />
               <Link href="/dashboard">
                 <Button variant="outline" size="sm">
                   Dashboard
@@ -202,38 +312,16 @@ export default function ProductsPage() {
                     className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-300 overflow-hidden"
                     onClick={() => setSelectedProduct(product)}
                   >
-                    {/* Product Image */}
+                    {/* Product Image - Temporarily disabled to avoid 404 errors */}
                     <div className="relative h-56 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                      {product.imageName ? (
-                        <img
-                          src={product.imageName}
-                          alt={product.name}
-                          className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-300"
-                          onError={(e) => {
-                            e.currentTarget.parentElement!.innerHTML = `
-                              <div class="w-full h-full flex items-center justify-center">
-                                <div class="text-center">
-                                  <div class="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 flex items-center justify-center">
-                                    <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                                    </svg>
-                                  </div>
-                                  <p class="text-xs text-gray-500">No Image</p>
-                                </div>
-                              </div>
-                            `;
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 flex items-center justify-center">
-                              <Package2 className="w-8 h-8 text-gray-500" />
-                            </div>
-                            <p className="text-xs text-gray-500">No Image</p>
+                      <div className="w-full h-full flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 flex items-center justify-center">
+                            <Package2 className="w-8 h-8 text-gray-500" />
                           </div>
+                          <p className="text-xs text-gray-500">No Image</p>
                         </div>
-                      )}
+                      </div>
                       {product.brand && (
                         <div className="absolute top-3 left-3">
                           <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm">
@@ -284,6 +372,30 @@ export default function ProductsPage() {
                           <p className="font-semibold text-gray-900">{product.stock}</p>
                         </div>
                       </div>
+
+                      {/* Add to Cart Button */}
+                      <Button
+                        className="w-full mt-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddToCart(product.id);
+                        }}
+                        disabled={addingToCart === product.id || product.stock === 0}
+                      >
+                        {addingToCart === product.id ? (
+                          <>Adding...</>
+                        ) : justAdded === product.id ? (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Added!
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add to Cart
+                          </>
+                        )}
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
@@ -298,19 +410,11 @@ export default function ProductsPage() {
                   >
                     <CardContent className="p-6">
                       <div className="flex items-center gap-6">
-                        {/* Image */}
+                        {/* Image - Temporarily disabled to avoid 404 errors */}
                         <div className="w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden flex-shrink-0">
-                          {product.imageName ? (
-                            <img
-                              src={product.imageName}
-                              alt={product.name}
-                              className="w-full h-full object-contain p-2"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package2 className="w-12 h-12 text-gray-400" />
-                            </div>
-                          )}
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package2 className="w-12 h-12 text-gray-400" />
+                          </div>
                         </div>
 
                         {/* Info */}
@@ -364,7 +468,7 @@ export default function ProductsPage() {
 
                 <div className="flex items-center gap-1">
                   {Array.from({ length: Math.min(data.pagination.totalPages, 7) }, (_, i) => {
-                    let pageNum;
+                    let pageNum: number;
                     if (data.pagination.totalPages <= 7) {
                       pageNum = i + 1;
                     } else if (page <= 4) {
@@ -432,16 +536,17 @@ export default function ProductsPage() {
               </DialogHeader>
 
               <div className="space-y-6">
-                {/* Image */}
-                {selectedProduct.imageName && (
-                  <div className="w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden">
-                    <img
-                      src={selectedProduct.imageName}
-                      alt={selectedProduct.name}
-                      className="w-full h-full object-contain p-4"
-                    />
+                {/* Image - Temporarily disabled to avoid 404 errors */}
+                <div className="w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden">
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-20 h-20 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <Package2 className="w-10 h-10 text-gray-500" />
+                      </div>
+                      <p className="text-sm text-gray-500">Image Preview Disabled</p>
+                    </div>
                   </div>
-                )}
+                </div>
 
                 {/* Price & Stock */}
                 <div className="grid grid-cols-2 gap-4">
@@ -493,15 +598,43 @@ export default function ProductsPage() {
                   )}
                 </div>
 
+                {/* Quantity Selector */}
+                <div className="border-t pt-4">
+                  <label className="block text-sm font-medium mb-2">Quantity</label>
+                  <QuantityControls
+                    quantity={selectedQuantity}
+                    onIncrease={() => setSelectedQuantity(q => q + 1)}
+                    onDecrease={() => setSelectedQuantity(q => Math.max(1, q - 1))}
+                    min={1}
+                    max={selectedProduct.stock}
+                  />
+                </div>
+
                 {/* Actions */}
                 <div className="flex gap-3 pt-4 border-t">
-                  <Button className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600">
-                    <ShoppingCart className="w-4 h-4 mr-2" />
-                    Add to Cart
+                  <Button 
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600"
+                    onClick={handleAddToCartFromModal}
+                    disabled={addingToCart === selectedProduct.id || selectedProduct.stock === 0}
+                  >
+                    {addingToCart === selectedProduct.id ? (
+                      <>Adding...</>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Add {selectedQuantity} to Cart
+                      </>
+                    )}
                   </Button>
-                  <Button variant="outline" className="flex-1">
-                    <Eye className="w-4 h-4 mr-2" />
-                    View Details
+                  <Button 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => {
+                      setSelectedProduct(null);
+                      setSelectedQuantity(1);
+                    }}
+                  >
+                    Close
                   </Button>
                 </div>
               </div>
@@ -509,6 +642,9 @@ export default function ProductsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Cart Drawer */}
+      {orgId ? <CartDrawer orgId={orgId} /> : null}
     </div>
   );
 }
