@@ -7,13 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BranchSelector } from "@/components/branch-selector";
 import { CartButton } from "@/components/cart/cart-button";
 import { CartDrawer } from "@/components/cart/cart-drawer";
 import { QuantityControls } from "@/components/cart/quantity-controls";
 import { useCart } from "@/lib/hooks/use-cart";
 import Link from "next/link";
-import { Package2, ShoppingCart, TrendingUp, Eye, Grid3x3, List, Search as SearchIcon, Filter, Plus, Check, X } from "lucide-react";
+import { Package2, ShoppingCart, TrendingUp, Eye, Grid3x3, List, Search as SearchIcon, Filter, Plus, Check, X, ArrowUpDown } from "lucide-react";
 
 interface Product {
   id: string;
@@ -60,6 +61,9 @@ export default function ProductsPage() {
   const [orgId, setOrgId] = useState<string | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high' | 'name-asc' | 'name-desc'>('newest');
 
   // Fetch organization ID and branch ID from selected branch or user context
   useEffect(() => {
@@ -122,12 +126,18 @@ export default function ProductsPage() {
     fetchOrgId();
   }, []);
 
-  const fetchProducts = async (pageNum: number, search?: string) => {
+  const fetchProducts = async (pageNum: number, search?: string, category?: string | null, sort?: string) => {
     try {
       setLoading(true);
       let url = `/api/products?page=${pageNum}&pageSize=${pageSize}&isVisible=true`;
       if (search) {
         url += `&search=${encodeURIComponent(search)}`;
+      }
+      if (category) {
+        url += `&categoryName=${encodeURIComponent(category)}`;
+      }
+      if (sort) {
+        url += `&sortBy=${encodeURIComponent(sort)}`;
       }
       
       const response = await fetch(url);
@@ -139,6 +149,22 @@ export default function ProductsPage() {
       const result = await response.json();
       setData(result);
       setError(null);
+      
+      // Extract unique categories from products
+      if (result.products) {
+        const uniqueCategories = Array.from(
+          new Set(
+            result.products
+              .map((p: Product) => p.categoryName)
+              .filter((cat: string | null | undefined) => cat && cat.trim() !== "")
+          )
+        ).sort() as string[];
+        setCategories((prev) => {
+          // Merge with existing categories
+          const merged = new Set([...prev, ...uniqueCategories]);
+          return Array.from(merged).sort();
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch products");
       console.error("Error fetching products:", err);
@@ -152,24 +178,19 @@ export default function ProductsPage() {
     if (!orgId) return;
 
     const timer = setTimeout(() => {
-      if (searchQuery) {
-        setPage(1); // Reset to first page when searching
-        fetchProducts(1, searchQuery);
-      } else {
-        // If search cleared, fetch current page
-        fetchProducts(page, "");
-      }
+      setPage(1); // Reset to first page when searching or filtering
+      fetchProducts(1, searchQuery || undefined, selectedCategory, sortBy);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, orgId]);
+  }, [searchQuery, selectedCategory, sortBy, orgId]);
 
-  // Fetch products when page or orgId changes (when not searching)
+  // Fetch products when page or sort changes
   useEffect(() => {
-    if (orgId && !searchQuery) {
-      fetchProducts(page, "");
+    if (orgId) {
+      fetchProducts(page, searchQuery || undefined, selectedCategory, sortBy);
     }
-  }, [page, orgId]);
+  }, [page, sortBy]);
 
   const formatPrice = (cents: number, currency: string = "AED") => {
     return new Intl.NumberFormat("en-AE", {
@@ -179,9 +200,25 @@ export default function ProductsPage() {
   };
 
   const getStockBadge = (stock: number) => {
-    if (stock === 0) return <Badge variant="destructive">Out of Stock</Badge>;
-    if (stock < 10) return <Badge variant="secondary" className="bg-yellow-500 text-white">Low Stock</Badge>;
-    return <Badge variant="default" className="bg-green-500">In Stock</Badge>;
+    if (stock === 0) {
+      return (
+        <Badge variant="destructive" className="bg-red-500 text-white px-2 py-0.5 text-xs font-medium rounded-full">
+          Out of Stock
+        </Badge>
+      );
+    }
+    if (stock < 10) {
+      return (
+        <Badge className="bg-orange-500 text-white px-2 py-0.5 text-xs font-medium rounded-full">
+          Low Stock
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-green-500 text-white px-2 py-0.5 text-xs font-medium rounded-full">
+        In Stock
+      </Badge>
+    );
   };
 
   const handleAddToCart = async (productId: string, quantity: number = 1) => {
@@ -243,7 +280,10 @@ export default function ProductsPage() {
                 />
                 {searchQuery && (
                   <button
-                    onClick={() => setSearchQuery("")}
+                    onClick={() => {
+                      setSearchQuery("");
+                      setSelectedCategory(null);
+                    }}
                     className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     <X className="w-4 h-4" />
@@ -291,6 +331,41 @@ export default function ProductsPage() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* Category Filter */}
+        {categories.length > 0 && (
+          <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">Filter by Category:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  selectedCategory === null
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All Categories
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedCategory === category
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Toolbar */}
         <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
@@ -314,8 +389,26 @@ export default function ProductsPage() {
                 List
               </Button>
             </div>
-            <div className="text-sm text-gray-600">
-              Page {page} of {data?.pagination.totalPages || 1}
+            <div className="flex items-center gap-3">
+              {/* Sort Dropdown */}
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                    <SelectItem value="name-asc">Name: A to Z</SelectItem>
+                    <SelectItem value="name-desc">Name: Z to A</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-gray-600">
+                Page {page} of {data?.pagination.totalPages || 1}
+              </div>
             </div>
           </div>
         </div>
@@ -364,73 +457,65 @@ export default function ProductsPage() {
                 {data.products.map((product: Product) => (
                   <Card
                     key={product.id}
-                    className="group hover:shadow-2xl transition-all duration-300 cursor-pointer border-gray-200 hover:border-blue-300 overflow-hidden"
-                    onClick={() => setSelectedProduct(product)}
+                    className="group hover:shadow-xl transition-all duration-300 border-gray-200 overflow-hidden bg-white flex flex-col h-full"
                   >
-                    {/* Product Image - Temporarily disabled to avoid 404 errors */}
-                    <div className="relative h-56 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
-                      <div className="w-full h-full flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-2 flex items-center justify-center">
-                            <Package2 className="w-8 h-8 text-gray-500" />
-                          </div>
-                          <p className="text-xs text-gray-500">No Image</p>
-                        </div>
-                      </div>
-                      {product.brand && (
-                        <div className="absolute top-3 left-3">
-                          <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm">
-                            {product.brand}
-                          </Badge>
-                        </div>
-                      )}
+                    {/* Top Header */}
+                    <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                      <span className="text-xs font-semibold text-gray-700 uppercase">
+                        {product.brand || 'Product'}
+                      </span>
                       {product.categoryName && (
-                        <div className="absolute top-3 right-3">
-                          <Badge variant="outline" className="bg-white/90 backdrop-blur-sm">
-                            {product.categoryName}
-                          </Badge>
-                        </div>
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 text-xs font-normal px-2 py-1">
+                          {product.categoryName}
+                        </Badge>
                       )}
                     </div>
 
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg line-clamp-2 group-hover:text-blue-600 transition-colors">
+                    {/* Product Image */}
+                    <div 
+                      className="relative h-48 bg-gray-100 rounded-lg mx-4 mb-4 cursor-pointer flex-shrink-0"
+                      onClick={() => setSelectedProduct(product)}
+                    >
+                      <div className="w-full h-full flex items-center justify-center rounded-lg">
+                        <div className="text-center">
+                          <Package2 className="w-12 h-12 text-gray-400 mx-auto mb-2" />
+                          <p className="text-xs text-gray-500">No Image</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <CardHeader className="pb-2 px-4 flex-shrink-0">
+                      <CardTitle 
+                        className="text-base font-bold text-blue-900 cursor-pointer hover:text-blue-700 min-h-[3rem] line-clamp-2"
+                        onClick={() => setSelectedProduct(product)}
+                        style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                      >
                         {product.name}
                       </CardTitle>
-                      <CardDescription className="text-xs font-mono">
-                        SKU: {product.sku}
+                      <CardDescription className="text-xs text-gray-500 font-normal mt-1 h-5">
+                        {product.sku}
                       </CardDescription>
                     </CardHeader>
 
-                    <CardContent className="space-y-3">
+                    <CardContent className="px-4 pb-4 space-y-3 flex-grow flex flex-col justify-end">
                       {/* Price */}
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
-                        <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                      <div className="bg-blue-50 rounded-lg p-3 flex-shrink-0">
+                        <p className="text-xl font-bold text-blue-700">
                           {formatPrice(product.priceCents, product.currency)}
                         </p>
                       </div>
 
-                      {/* Description */}
-                      {product.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2 min-h-[2.5rem]">
-                          {product.description}
-                        </p>
-                      )}
-
-                      {/* Stock & Status */}
-                      <div className="flex items-center justify-between pt-2 border-t">
-                        <div>
-                          {getStockBadge(product.stock)}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-gray-500">Stock</p>
-                          <p className="font-semibold text-gray-900">{product.stock}</p>
-                        </div>
+                      {/* Stock Status */}
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        {getStockBadge(product.stock)}
+                        <span className="text-sm text-gray-700">
+                          Stock {product.stock}
+                        </span>
                       </div>
 
                       {/* Add to Cart Button */}
                       <Button
-                        className="w-full mt-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                        className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-medium rounded-lg flex-shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleAddToCart(product.id);
@@ -581,8 +666,11 @@ export default function ProductsPage() {
       </main>
 
       {/* Product Detail Dialog */}
-      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={!!selectedProduct} onOpenChange={() => {
+        setSelectedProduct(null);
+        setSelectedQuantity(1);
+      }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
           {selectedProduct && (
             <>
               <DialogHeader>
@@ -655,14 +743,27 @@ export default function ProductsPage() {
 
                 {/* Quantity Selector */}
                 <div className="border-t pt-4">
-                  <label className="block text-sm font-medium mb-2">Quantity</label>
-                  <QuantityControls
-                    quantity={selectedQuantity}
-                    onIncrease={() => setSelectedQuantity(q => q + 1)}
-                    onDecrease={() => setSelectedQuantity(q => Math.max(1, q - 1))}
-                    min={1}
-                    max={selectedProduct.stock}
-                  />
+                  <label className="block text-sm font-medium mb-3 text-gray-700">Quantity</label>
+                  <div className="flex items-center gap-4">
+                    <QuantityControls
+                      quantity={selectedQuantity}
+                      onIncrease={() => {
+                        const newQty = selectedQuantity + 1;
+                        if (!selectedProduct.stock || newQty <= selectedProduct.stock) {
+                          setSelectedQuantity(newQty);
+                        }
+                      }}
+                      onDecrease={() => {
+                        const newQty = Math.max(1, selectedQuantity - 1);
+                        setSelectedQuantity(newQty);
+                      }}
+                      min={1}
+                      max={selectedProduct.stock || undefined}
+                    />
+                    <span className="text-sm text-gray-500">
+                      (Max: {selectedProduct.stock})
+                    </span>
+                  </div>
                 </div>
 
                 {/* Actions */}

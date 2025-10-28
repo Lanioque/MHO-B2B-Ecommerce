@@ -11,6 +11,7 @@ export interface ProductFilter {
   categoryName?: string;
   hasImage?: boolean;
   search?: string; // Search by name or SKU
+  sortBy?: 'newest' | 'price-low' | 'price-high' | 'name-asc' | 'name-desc';
 }
 
 export interface PaginationOptions {

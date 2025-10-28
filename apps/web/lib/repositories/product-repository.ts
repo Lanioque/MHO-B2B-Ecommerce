@@ -84,10 +84,33 @@ export class ProductRepository implements IProductRepository {
 
     const skip = (pagination.page - 1) * pagination.pageSize;
 
+    // Determine sort order based on filter
+    let orderBy: any = { createdAt: 'desc' }; // Default to newest
+    if (filter.sortBy) {
+      switch (filter.sortBy) {
+        case 'price-low':
+          orderBy = { priceCents: 'asc' };
+          break;
+        case 'price-high':
+          orderBy = { priceCents: 'desc' };
+          break;
+        case 'name-asc':
+          orderBy = { name: 'asc' };
+          break;
+        case 'name-desc':
+          orderBy = { name: 'desc' };
+          break;
+        case 'newest':
+        default:
+          orderBy = { createdAt: 'desc' };
+          break;
+      }
+    }
+
     const [items, total] = await Promise.all([
       this.db.product.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         skip,
         take: pagination.pageSize,
       }),

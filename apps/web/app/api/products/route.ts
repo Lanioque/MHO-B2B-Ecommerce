@@ -16,11 +16,15 @@ async function getProductsHandler(req: NextRequest) {
   // Parse filters
   const isVisible = req.nextUrl.searchParams.get("isVisible");
   const search = req.nextUrl.searchParams.get("search") || undefined;
+  const categoryName = req.nextUrl.searchParams.get("categoryName") || undefined;
+  const sortBy = req.nextUrl.searchParams.get("sortBy") as 'newest' | 'price-low' | 'price-high' | 'name-asc' | 'name-desc' | undefined;
   const filter = {
     isVisible: isVisible !== null ? isVisible === "true" : undefined,
     status: 'active',
     hasImage: true,
     search,
+    categoryName,
+    sortBy: sortBy || 'newest',
   };
 
   // Parse pagination

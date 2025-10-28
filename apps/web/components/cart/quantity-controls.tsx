@@ -35,11 +35,14 @@ export function QuantityControls({
   const minWidth = size === 'sm' ? 'min-w-[40px]' : size === 'lg' ? 'min-w-[60px]' : 'min-w-[50px]';
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
       <Button
         variant="outline"
         size={buttonSize}
-        onClick={onDecrease}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDecrease();
+        }}
         disabled={disabled || !canDecrease}
         className="h-8 w-8 p-0"
       >
@@ -53,7 +56,10 @@ export function QuantityControls({
       <Button
         variant="outline"
         size={buttonSize}
-        onClick={onIncrease}
+        onClick={(e) => {
+          e.stopPropagation();
+          onIncrease();
+        }}
         disabled={disabled || !canIncrease}
         className="h-8 w-8 p-0"
       >
