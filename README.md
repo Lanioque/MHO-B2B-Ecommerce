@@ -872,7 +872,27 @@ To export this documentation as PDF with rendered Mermaid diagrams, you have sev
 ✅ **Pros:** Works immediately, preserves all formatting and diagrams
 ❌ **Cons:** Manual process
 
-### 🚀 Option 2: Automated Script (Puppeteer)
+### 🚀 Option 2: Python Script (Local MD File - Recommended)
+
+1. **Install dependencies:**
+   ```bash
+   pip install md2pdf-mermaid playwright markdown
+   python -m playwright install chromium
+   ```
+
+2. **Run the export script:**
+   ```bash
+   python scripts/export-pdf.py
+   ```
+
+   This automatically:
+   - Reads your local `README.md` file
+   - Renders all Mermaid diagrams
+   - Generates `README.pdf` in the project root
+
+### 📦 Option 3: Automated Script (GitHub Pages - Puppeteer)
+
+For exporting from GitHub Pages instead:
 
 1. **Install Puppeteer:**
    ```bash
@@ -883,10 +903,5 @@ To export this documentation as PDF with rendered Mermaid diagrams, you have sev
    ```bash
    node scripts/export-readme-pdf.js
    ```
-
-   This automatically:
-   - Loads your GitHub Pages site
-   - Waits for Mermaid diagrams to render
-   - Generates `README.pdf` in the project root
 
 See `scripts/README.md` for more options including Pandoc, VS Code extensions, and online services.
