@@ -146,8 +146,7 @@
             // Try known repository names with both branch names
             const knownRepos = [
                 'MHO-B2B-Ecommerce',
-                'MHO',
-                'MHO-B2B-Ecommerce'
+                'MHO'
             ];
             
             const branches = ['master', 'main'];
@@ -178,7 +177,8 @@
                     
                     if (response.ok) {
                         const text = await response.text();
-                        if (text && text.length > 0 && text.includes('MHO')) {
+                        // Verify it's a valid README (contains markdown headers or project name)
+                        if (text && text.length > 100 && (text.includes('#') || text.includes('MHO') || text.includes('B2B'))) {
                             console.log(`Successfully loaded from: ${url}`);
                             return text;
                         }
