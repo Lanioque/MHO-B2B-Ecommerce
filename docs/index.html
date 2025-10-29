@@ -131,36 +131,65 @@
         // Try multiple methods to load README
         async function loadREADME() {
             const repoInfo = getRepoInfo();
-            let readmeUrl;
             
+            // Build comprehensive list of URLs to try
+            const urlsToTry = [];
+            
+            // Try with detected repo info
             if (repoInfo && repoInfo.isGitHubPages) {
-                // Use GitHub raw content URL
-                readmeUrl = `https://raw.githubusercontent.com/${repoInfo.user}/${repoInfo.repo}/master/README.md`;
-            } else {
-                // Try relative path first
-                readmeUrl = '../README.md';
+                urlsToTry.push(
+                    `https://raw.githubusercontent.com/${repoInfo.user}/${repoInfo.repo}/master/README.md`,
+                    `https://raw.githubusercontent.com/${repoInfo.user}/${repoInfo.repo}/main/README.md`
+                );
             }
-
-            const urlsToTry = [
-                readmeUrl,
-                'https://raw.githubusercontent.com/Lanioque/MHO/master/README.md',
-                '../README.md',
-                '../../README.md'
+            
+            // Try known repository names with both branch names
+            const knownRepos = [
+                'MHO-B2B-Ecommerce',
+                'MHO',
+                'MHO-B2B-Ecommerce'
             ];
+            
+            const branches = ['master', 'main'];
+            
+            for (const repo of knownRepos) {
+                for (const branch of branches) {
+                    urlsToTry.push(`https://raw.githubusercontent.com/Lanioque/${repo}/${branch}/README.md`);
+                }
+            }
+            
+            // Try relative paths
+            urlsToTry.push(
+                '../README.md',
+                '../../README.md',
+                '../../../README.md'
+            );
 
+            // Try each URL
             for (const url of urlsToTry) {
                 try {
-                    const response = await fetch(url);
+                    console.log(`Trying to load from: ${url}`);
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'text/plain, text/markdown, */*'
+                        }
+                    });
+                    
                     if (response.ok) {
-                        return await response.text();
+                        const text = await response.text();
+                        if (text && text.length > 0 && text.includes('MHO')) {
+                            console.log(`Successfully loaded from: ${url}`);
+                            return text;
+                        }
                     }
                 } catch (error) {
-                    console.log(`Failed to load from ${url}:`, error);
+                    console.log(`Failed to load from ${url}:`, error.message);
                     continue;
                 }
             }
             
-            throw new Error('Could not load README from any source');
+            throw new Error('Could not load README from any source. Check console for attempted URLs.');
         }
 
         // Render documentation
@@ -194,7 +223,7 @@
                         <h2>⚠️ Error loading documentation</h2>
                         <p><strong>${error.message}</strong></p>
                         <p>Please view the README directly on GitHub:</p>
-                        <p><a href="https://github.com/Lanioque/MHO/blob/master/README.md" target="_blank">
+                        <p><a href="https://github.com/Lanioque/MHO-B2B-Ecommerce/blob/master/README.md" target="_blank">
                             View README on GitHub →
                         </a></p>
                         <p><small>If you're setting up GitHub Pages, make sure:</small></p>
@@ -202,7 +231,9 @@
                             <li><small>README.md exists in the repository root</small></li>
                             <li><small>GitHub Pages is enabled for the repository</small></li>
                             <li><small>Source is set to '/docs' folder</small></li>
+                            <li><small>Check browser console (F12) for attempted URLs</small></li>
                         </ul>
+                        <p><strong>Manual fix:</strong> If this continues, edit <code>docs/index.html</code> and update the repository name in the knownRepos array.</p>
                     </div>`;
             });
     </script>
