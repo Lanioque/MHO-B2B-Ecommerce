@@ -107,10 +107,15 @@
         function processMermaidCode(markdown) {
             let diagramIndex = 0;
             // Replace mermaid code blocks with div tags that Mermaid can process
-            return markdown.replace(/```mermaid\n([\s\S]*?)```/g, function(match, code) {
+            // Match ```mermaid followed by any whitespace/newlines, then content, then closing ```
+            // Use more flexible regex to handle various formatting
+            return markdown.replace(/```\s*mermaid\s*\n([\s\S]*?)\n\s*```/g, function(match, code) {
                 diagramIndex++;
                 const id = 'mermaid-diagram-' + diagramIndex;
-                return `<div class="mermaid" id="${id}">${code.trim()}</div>`;
+                // Clean up the code - remove extra whitespace but preserve structure
+                const cleanedCode = code.trim().replace(/^\s+/gm, ''); // Remove leading whitespace from each line
+                console.log(`Processing Mermaid diagram ${diagramIndex}, code length: ${cleanedCode.length}`);
+                return `\n<div class="mermaid" id="${id}">${cleanedCode}</div>\n`;
             });
         }
 
@@ -233,11 +238,20 @@
                 
                 // Render Mermaid diagrams after content is loaded
                 setTimeout(() => {
+                    const mermaidElements = document.querySelectorAll('.mermaid');
+                    console.log(`Found ${mermaidElements.length} Mermaid diagrams to render`);
+                    
+                    mermaidElements.forEach((el, index) => {
+                        console.log(`Rendering diagram ${index + 1}:`, el.id, el.textContent.substring(0, 50));
+                    });
+                    
                     mermaid.run({
                         querySelector: '.mermaid',
-                        suppressErrors: true
+                        suppressErrors: false // Set to false to see errors
+                    }).catch(err => {
+                        console.error('Mermaid rendering error:', err);
                     });
-                }, 200);
+                }, 300);
             })
             .catch(error => {
                 console.error('Error loading README:', error);
