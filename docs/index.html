@@ -117,14 +117,31 @@
         // Get repository information from current URL
         function getRepoInfo() {
             const pathParts = window.location.pathname.split('/').filter(p => p);
-            // GitHub Pages format: /username/repo/
-            if (pathParts.length >= 2) {
+            const hostname = window.location.hostname;
+            
+            // GitHub Pages format: username.github.io/repo-name/
+            // Example: lanioque.github.io/MHO-B2B-Ecommerce/
+            // The hostname contains: lanioque.github.io
+            // The path contains: MHO-B2B-Ecommerce (or empty if at root)
+            
+            if (hostname.includes('github.io')) {
+                // Extract username from hostname: username.github.io -> username
+                const user = hostname.split('.')[0];
+                
+                // Extract repo from path
+                // For /MHO-B2B-Ecommerce/ pathParts = ['MHO-B2B-Ecommerce']
+                // For root / pathParts = []
+                const repo = pathParts[0] || 'MHO-B2B-Ecommerce';
+                
+                console.log('Detected repo info:', { user, repo, hostname, pathParts });
+                
                 return {
-                    user: pathParts[0],
-                    repo: pathParts[1],
+                    user: user,
+                    repo: repo,
                     isGitHubPages: true
                 };
             }
+            
             return null;
         }
 
@@ -192,8 +209,13 @@
             throw new Error('Could not load README from any source. Check console for attempted URLs.');
         }
 
-        // Render documentation
-        loadREADME()
+        // Render documentation with timeout
+        Promise.race([
+            loadREADME(),
+            new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Request timeout after 10 seconds')), 10000)
+            )
+        ])
             .then(text => {
                 // Process Mermaid diagrams before markdown parsing
                 const processedText = processMermaidCode(text);
@@ -218,13 +240,21 @@
                 }, 200);
             })
             .catch(error => {
+                console.error('Error loading README:', error);
+                const errorMsg = error.message || 'Unknown error occurred';
                 document.getElementById('content').innerHTML = 
                     `<div class="error">
                         <h2>⚠️ Error loading documentation</h2>
-                        <p><strong>${error.message}</strong></p>
+                        <p><strong>${errorMsg}</strong></p>
+                        <p>Current URL: <code>${window.location.href}</code></p>
+                        <p>Path parts: <code>${window.location.pathname.split('/').filter(p => p).join(', ')}</code></p>
                         <p>Please view the README directly on GitHub:</p>
                         <p><a href="https://github.com/Lanioque/MHO-B2B-Ecommerce/blob/master/README.md" target="_blank">
                             View README on GitHub →
+                        </a></p>
+                        <p>Or try direct link to README:</p>
+                        <p><a href="https://raw.githubusercontent.com/Lanioque/MHO-B2B-Ecommerce/master/README.md" target="_blank">
+                            View Raw README →
                         </a></p>
                         <p><small>If you're setting up GitHub Pages, make sure:</small></p>
                         <ul>
