@@ -18,16 +18,23 @@ A modern, scalable B2B e-commerce platform with real-time Zoho Inventory integra
 
 ### 🔄 Zoho Integration
 - **Real-time Sync** - Automatic product synchronization from Zoho Inventory
+- **Zoho Books Integration** - Automatic sales orders and invoice generation
+- **Branch Auto-registration** - Branches automatically synced as customers/contacts
+- **Invoice PDF Generation** - Automatic PDF creation and viewing
 - **OAuth 2.0** - Secure authentication with token refresh
 - **Comprehensive Data** - 50+ product fields synced (pricing, stock, images, etc.)
 - **Multi-organization** - Support for multiple Zoho organizations
 - **Service Account** - Background sync service for scheduled updates
 
 ### 🏢 B2B Features
+- **Shopping Cart** - Branch-specific carts with guest support
+- **Order Management** - Complete order lifecycle from cart to invoice
+- **Invoice System** - Automatic invoice generation with PDF viewing
 - **Multi-branch Support** - Manage multiple business locations
 - **Organization Management** - Company and branch hierarchy
 - **Role-based Access** - Admin, Manager, Customer roles
 - **Branch Switching** - Easy switching between locations
+- **Recent Activity Dashboard** - Real-time activity feed for orders, invoices, and branches
 
 ### 🔐 Authentication & Security
 - **NextAuth.js** - Secure authentication with session management
@@ -51,9 +58,15 @@ MHO/
 │   │   ├── api/              # API routes
 │   │   │   ├── auth/         # Authentication endpoints
 │   │   │   ├── products/     # Product management
+│   │   │   ├── cart/         # Shopping cart endpoints
+│   │   │   ├── orders/       # Order management
+│   │   │   ├── invoices/     # Invoice endpoints
 │   │   │   ├── zoho/         # Zoho integration
 │   │   │   └── orgs/         # Organization management
 │   │   ├── products/         # Product catalog page
+│   │   ├── cart/             # Shopping cart page
+│   │   ├── checkout/         # Checkout page
+│   │   ├── orders/           # Orders list & details
 │   │   ├── dashboard/        # Admin dashboard
 │   │   └── onboarding/       # User onboarding flow
 │   ├── components/           # React components
@@ -109,6 +122,8 @@ ZOHO_CLIENT_ID=your_client_id
 ZOHO_CLIENT_SECRET=your_client_secret
 ZOHO_ORGANIZATION_ID=your_org_id
 ZOHO_REGION=eu  # or us, in, au
+ZOHO_SCOPE=ZohoInventory.fullaccess.all,ZohoBooks.contacts.CREATE,ZohoBooks.contacts.READ,ZohoBooks.salesorders.CREATE,ZohoBooks.invoices.CREATE,ZohoBooks.invoices.READ
+ZOHO_BOOKS_ORGANIZATION_ID=your_books_org_id
 ```
 
 ### 3. Start with Docker
@@ -206,6 +221,23 @@ docker-compose up -d
 - `GET /api/products/:id` - Get product details
 - `POST /api/products` - Create product (admin)
 
+### Shopping Cart
+- `GET /api/cart` - Get user's cart (with branch filter)
+- `POST /api/cart` - Add items to cart
+- `DELETE /api/cart` - Clear cart
+- `PATCH /api/cart/items/:itemId` - Update cart item quantity
+- `DELETE /api/cart/items/:itemId` - Remove item from cart
+
+### Orders
+- `GET /api/orders` - List orders (with filters)
+- `POST /api/orders` - Create order from cart
+- `GET /api/orders/:id` - Get order details
+- `PATCH /api/orders/:id` - Update order status
+
+### Invoices
+- `GET /api/invoices/:id` - Get invoice details
+- `GET /api/invoices/:id/pdf` - Download invoice PDF
+
 ### Zoho Integration
 - `GET /api/zoho/oauth/start` - Start OAuth flow
 - `GET /api/zoho/oauth/callback` - OAuth callback
@@ -226,22 +258,31 @@ See `apps/web/env.example` for all required variables.
 Key models:
 - **User** - Authentication & profile
 - **Organization** - Company entities
-- **Branch** - Business locations
+- **Branch** - Business locations (with Zoho contact sync)
 - **Membership** - User-org relationships with roles
 - **Product** - Product catalog (global)
+- **Cart** - Shopping carts (branch-specific, guest support)
+- **CartItem** - Cart line items
+- **Order** - Customer orders
+- **OrderItem** - Order line items
+- **Invoice** - Generated invoices (linked to orders)
+- **Customer** - Customer records
 - **ZohoConnection** - OAuth tokens & settings
 
 ## 🎯 Roadmap
 
-- [ ] Shopping cart & checkout
-- [ ] Order management
-- [ ] Invoice generation
+- [x] Shopping cart & checkout
+- [x] Order management
+- [x] Invoice generation
+- [x] Zoho Books integration
+- [ ] Payment processing
 - [ ] Email notifications
 - [ ] Advanced search & filters
 - [ ] Product recommendations
 - [ ] Analytics dashboard
 - [ ] Multi-currency support
 - [ ] API documentation (Swagger)
+- [ ] Mobile app
 
 ## 🤝 Contributing
 
