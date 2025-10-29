@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MHO B2B E-commerce Platform - Documentation</title>
+    
+    <!-- GitHub Markdown CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
+    
+    <!-- Mermaid.js -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    
+    <!-- Marked.js for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
+    
+    <style>
+        body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 45px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+        }
+        
+        .markdown-body {
+            box-sizing: border-box;
+            min-width: 200px;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 45px;
+        }
+        
+        @media (max-width: 767px) {
+            .markdown-body {
+                padding: 15px;
+            }
+        }
+        
+        /* Mermaid diagram styling */
+        .mermaid {
+            text-align: center;
+            margin: 2rem 0;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid #e1e4e8;
+            overflow-x: auto;
+        }
+        
+        /* Loading spinner */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 200px;
+            font-size: 18px;
+            color: #586069;
+        }
+        
+        /* Code block styling improvements */
+        .markdown-body pre code {
+            font-size: 14px;
+            line-height: 1.45;
+        }
+        
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Error styling */
+        .error {
+            color: #d73a49;
+            padding: 20px;
+            border: 1px solid #d73a49;
+            border-radius: 6px;
+            background-color: #ffeef0;
+        }
+    </style>
+</head>
+<body>
+    <div class="markdown-body">
+        <div id="content" class="loading">Loading documentation...</div>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: false, // We'll manually trigger rendering
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequence: {
+                diagramMarginX: 50,
+                diagramMarginY: 10
+            }
+        });
+
+        // Function to process Mermaid code blocks
+        function processMermaidCode(markdown) {
+            let diagramIndex = 0;
+            // Replace mermaid code blocks with div tags that Mermaid can process
+            return markdown.replace(/```mermaid\n([\s\S]*?)```/g, function(match, code) {
+                diagramIndex++;
+                const id = 'mermaid-diagram-' + diagramIndex;
+                return `<div class="mermaid" id="${id}">${code.trim()}</div>`;
+            });
+        }
+
+        // Get repository information from current URL
+        function getRepoInfo() {
+            const pathParts = window.location.pathname.split('/').filter(p => p);
+            // GitHub Pages format: /username/repo/
+            if (pathParts.length >= 2) {
+                return {
+                    user: pathParts[0],
+                    repo: pathParts[1],
+                    isGitHubPages: true
+                };
+            }
+            return null;
+        }
+
+        // Try multiple methods to load README
+        async function loadREADME() {
+            const repoInfo = getRepoInfo();
+            let readmeUrl;
+            
+            if (repoInfo && repoInfo.isGitHubPages) {
+                // Use GitHub raw content URL
+                readmeUrl = `https://raw.githubusercontent.com/${repoInfo.user}/${repoInfo.repo}/master/README.md`;
+            } else {
+                // Try relative path first
+                readmeUrl = '../README.md';
+            }
+
+            const urlsToTry = [
+                readmeUrl,
+                'https://raw.githubusercontent.com/Lanioque/MHO/master/README.md',
+                '../README.md',
+                '../../README.md'
+            ];
+
+            for (const url of urlsToTry) {
+                try {
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        return await response.text();
+                    }
+                } catch (error) {
+                    console.log(`Failed to load from ${url}:`, error);
+                    continue;
+                }
+            }
+            
+            throw new Error('Could not load README from any source');
+        }
+
+        // Render documentation
+        loadREADME()
+            .then(text => {
+                // Process Mermaid diagrams before markdown parsing
+                const processedText = processMermaidCode(text);
+                
+                // Parse markdown
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true,
+                    headerIds: true,
+                    mangle: false
+                });
+                
+                const html = marked.parse(processedText);
+                document.getElementById('content').innerHTML = html;
+                
+                // Render Mermaid diagrams after content is loaded
+                setTimeout(() => {
+                    mermaid.run({
+                        querySelector: '.mermaid',
+                        suppressErrors: true
+                    });
+                }, 200);
+            })
+            .catch(error => {
+                document.getElementById('content').innerHTML = 
+                    `<div class="error">
+                        <h2>⚠️ Error loading documentation</h2>
+                        <p><strong>${error.message}</strong></p>
+                        <p>Please view the README directly on GitHub:</p>
+                        <p><a href="https://github.com/Lanioque/MHO/blob/master/README.md" target="_blank">
+                            View README on GitHub →
+                        </a></p>
+                        <p><small>If you're setting up GitHub Pages, make sure:</small></p>
+                        <ul>
+                            <li><small>README.md exists in the repository root</small></li>
+                            <li><small>GitHub Pages is enabled for the repository</small></li>
+                            <li><small>Source is set to '/docs' folder</small></li>
+                        </ul>
+                    </div>`;
+            });
+    </script>
+</body>
+</html>
+
