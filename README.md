@@ -30,11 +30,23 @@ A modern, scalable B2B e-commerce platform with real-time Zoho Inventory integra
 - **Shopping Cart** - Branch-specific carts with guest support
 - **Order Management** - Complete order lifecycle from cart to invoice
 - **Invoice System** - Automatic invoice generation with PDF viewing
+- **Quotations** - Create, manage, and convert quotations to orders
 - **Multi-branch Support** - Manage multiple business locations
 - **Organization Management** - Company and branch hierarchy
 - **Role-based Access** - Admin, Manager, Customer roles
 - **Branch Switching** - Easy switching between locations
 - **Recent Activity Dashboard** - Real-time activity feed for orders, invoices, and branches
+
+### 📊 Analytics & Reporting
+- **Comprehensive Analytics Dashboard** - Real-time insights into spending and orders
+- **Financial Metrics** - Total spent amount, average order value, cost per employee
+- **Interactive Charts** - Revenue over time, category breakdown, top products
+- **Time Range Filters** - Last 7 days, 30 days, 90 days, 1 year, or custom range
+- **Branch Filtering** - Filter analytics by specific branch
+- **Export Capabilities** - Export analytics to PDF or CSV
+- **Latest Orders & Quotations** - Quick view of recent activity
+- **Status Breakdown** - Visual breakdown of orders by status
+- **AED Currency** - All financial data displayed in UAE Dirhams
 
 ### 🔐 Authentication & Security
 - **NextAuth.js** - Secure authentication with session management
@@ -61,16 +73,21 @@ MHO/
 │   │   │   ├── cart/         # Shopping cart endpoints
 │   │   │   ├── orders/       # Order management
 │   │   │   ├── invoices/     # Invoice endpoints
+│   │   │   ├── analytics/    # Analytics & reporting
+│   │   │   ├── quotations/   # Quotation management
 │   │   │   ├── zoho/         # Zoho integration
 │   │   │   └── orgs/         # Organization management
 │   │   ├── products/         # Product catalog page
 │   │   ├── cart/             # Shopping cart page
 │   │   ├── checkout/         # Checkout page
 │   │   ├── orders/           # Orders list & details
+│   │   ├── quotations/       # Quotations list & management
+│   │   ├── analytics/        # Analytics dashboard
 │   │   ├── dashboard/        # Admin dashboard
 │   │   └── onboarding/       # User onboarding flow
 │   ├── components/           # React components
-│   │   └── ui/               # Shadcn UI components
+│   │   ├── ui/                    # Shadcn UI components
+│   │   └── analytics/             # Analytics chart components
 │   ├── lib/                  # Utilities & helpers
 │   │   ├── auth.ts           # NextAuth configuration
 │   │   ├── prisma.ts         # Database client
@@ -204,6 +221,12 @@ docker-compose up -d
 - **Redis** - Session & cache store
 - **Zod** - Runtime validation
 
+### Analytics & Charts
+- **Recharts** - Interactive charts (line, bar, pie)
+- **date-fns** - Date manipulation and formatting
+- **jsPDF & jsPDF-AutoTable** - PDF generation for exports
+- **Papaparse** - CSV export functionality
+
 ### DevOps
 - **Docker** - Containerization
 - **Docker Compose** - Multi-container orchestration
@@ -238,6 +261,17 @@ docker-compose up -d
 - `GET /api/invoices/:id` - Get invoice details
 - `GET /api/invoices/:id/pdf` - Download invoice PDF
 
+### Analytics
+- `GET /api/analytics` - Get organization analytics (with date range and branch filters)
+- `GET /api/analytics/export` - Export analytics to CSV or PDF
+
+### Quotations
+- `GET /api/quotations` - List quotations (with filters)
+- `POST /api/quotations` - Create quotation
+- `GET /api/quotations/:id` - Get quotation details
+- `PATCH /api/quotations/:id` - Update quotation status or convert to order
+- `DELETE /api/quotations/:id` - Delete quotation
+
 ### Zoho Integration
 - `GET /api/zoho/oauth/start` - Start OAuth flow
 - `GET /api/zoho/oauth/callback` - OAuth callback
@@ -263,9 +297,11 @@ Key models:
 - **Product** - Product catalog (global)
 - **Cart** - Shopping carts (branch-specific, guest support)
 - **CartItem** - Cart line items
-- **Order** - Customer orders
+- **Order** - Customer orders (with status tracking)
 - **OrderItem** - Order line items
 - **Invoice** - Generated invoices (linked to orders)
+- **Quotation** - Quotations with status lifecycle (DRAFT, SENT, APPROVED, REJECTED, EXPIRED, CONVERTED)
+- **QuotationItem** - Quotation line items
 - **Customer** - Customer records
 - **ZohoConnection** - OAuth tokens & settings
 
@@ -275,12 +311,14 @@ Key models:
 - [x] Order management
 - [x] Invoice generation
 - [x] Zoho Books integration
+- [x] Analytics dashboard with export capabilities
+- [x] Quotations management system
+- [x] Currency support (AED)
 - [ ] Payment processing
 - [ ] Email notifications
 - [ ] Advanced search & filters
 - [ ] Product recommendations
-- [ ] Analytics dashboard
-- [ ] Multi-currency support
+- [ ] Multi-currency support (beyond AED)
 - [ ] API documentation (Swagger)
 - [ ] Mobile app
 
