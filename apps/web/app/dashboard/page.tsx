@@ -175,6 +175,24 @@ export default async function DashboardPage() {
       iconColor: "text-green-600"
     },
     {
+      title: "Analytics",
+      description: "View business insights and metrics",
+      icon: LayoutDashboard,
+      href: "/analytics",
+      color: "bg-indigo-500",
+      iconBg: "bg-indigo-100",
+      iconColor: "text-indigo-600"
+    },
+    {
+      title: "Quotations",
+      description: "Manage quotations and convert to orders",
+      icon: FileText,
+      href: "/quotations",
+      color: "bg-teal-500",
+      iconBg: "bg-teal-100",
+      iconColor: "text-teal-600"
+    },
+    {
       title: "Customers",
       description: "Manage your customer database",
       icon: Users,
