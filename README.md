@@ -854,3 +854,39 @@ For issues and questions, please open an issue on GitHub.
 ---
 
 Built with ❤️ using Next.js & TypeScript
+
+## 📄 Export as PDF
+
+To export this documentation as PDF with rendered Mermaid diagrams, you have several options:
+
+### 🌐 Option 1: Browser Export (Easiest - Recommended)
+
+1. Visit your GitHub Pages documentation: https://lanioque.github.io/MHO-B2B-Ecommerce/
+2. Wait for all Mermaid diagrams to fully render (check browser console if needed)
+3. Press `Ctrl+P` (Windows/Linux) or `Cmd+P` (Mac)
+4. Select "Save as PDF" as destination
+5. Click "More settings" → Enable **"Background graphics"**
+6. Adjust margins if needed
+7. Click "Save"
+
+✅ **Pros:** Works immediately, preserves all formatting and diagrams
+❌ **Cons:** Manual process
+
+### 🚀 Option 2: Automated Script (Puppeteer)
+
+1. **Install Puppeteer:**
+   ```bash
+   npm install puppeteer --save-dev
+   ```
+
+2. **Run the export script:**
+   ```bash
+   node scripts/export-readme-pdf.js
+   ```
+
+   This automatically:
+   - Loads your GitHub Pages site
+   - Waits for Mermaid diagrams to render
+   - Generates `README.pdf` in the project root
+
+See `scripts/README.md` for more options including Pandoc, VS Code extensions, and online services.
