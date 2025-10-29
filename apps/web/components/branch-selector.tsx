@@ -117,10 +117,16 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
   };
 
   const handleChange = async (value: string) => {
+    const previousValue = selectedBranch;
     setSelectedBranch(value);
     localStorage.setItem("currentBranchId", value);
     
-    // Fetch branch to get orgId
+    // Only call onBranchChange if the value actually changed
+    if (value !== previousValue && onBranchChange) {
+      onBranchChange(value);
+    }
+    
+    // Fetch branch to get orgId (only if needed)
     try {
       const branchResponse = await fetch(`/api/branches/${value}`, { credentials: "include" });
       if (branchResponse.ok) {

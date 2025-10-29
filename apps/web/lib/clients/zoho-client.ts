@@ -13,6 +13,9 @@ import {
   ZohoTokenResponse,
   ZohoOrganization,
   ZohoItem,
+  ZohoContact,
+  ZohoSalesOrder,
+  ZohoInvoice,
 } from '@/lib/domain/interfaces/IZohoClient';
 
 export class ZohoError extends Error {
@@ -118,7 +121,7 @@ export class ZohoClient implements IZohoClient {
     }
 
     console.log(
-      `[Zoho] Access token expires at: ${connection.expiresAt} (region: ${connection.region})`
+      `[Zoho] Access token expires at: ${connection.expiresAt} (region: ${connection.region}, scope: ${connection.scope || 'not set'})`
     );
     
     const now = new Date();
@@ -138,13 +141,26 @@ export class ZohoClient implements IZohoClient {
           accessToken: tokenData.access_token,
           refreshToken: tokenData.refresh_token ?? connection.refreshToken,
           expiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+          scope: tokenData.scope || connection.scope,
         },
       });
 
+      console.log(`[Zoho] Token refreshed with scope: ${tokenData.scope || 'not provided'}`);
       return tokenData.access_token;
     }
 
     return connection.accessToken;
+  }
+
+  /**
+   * Get region from connection
+   */
+  private async getRegionFromConnection(orgId: string): Promise<ZohoRegion> {
+    const connection = await prisma.zohoConnection.findUnique({
+      where: { orgId },
+      select: { region: true },
+    });
+    return (connection?.region || config.zoho.region) as ZohoRegion;
   }
 
   /**
@@ -272,6 +288,234 @@ export class ZohoClient implements IZohoClient {
     console.log(`[Zoho] Pagination complete! Total items fetched: ${allItems.length}`);
     
     return allItems;
+  }
+
+  /**
+   * Get Zoho Books organization ID
+   */
+  private async getBooksOrganizationId(orgId?: string): Promise<string> {
+    if (config.zoho.booksOrganizationId) {
+      return config.zoho.booksOrganizationId;
+    }
+    
+    if (orgId) {
+      const connection = await prisma.zohoConnection.findUnique({
+        where: { orgId },
+        select: { zohoOrganizationId: true },
+      });
+      if (connection?.zohoOrganizationId) {
+        return connection.zohoOrganizationId;
+      }
+    }
+    
+    if (config.zoho.organizationId) {
+      return config.zoho.organizationId;
+    }
+    
+    throw new ZohoError('Zoho Books organization ID is required');
+  }
+
+  /**
+   * Create a contact (customer) in Zoho Books
+   */
+  async createContact(orgId: string, contactData: ZohoContact): Promise<ZohoContact> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    console.log(`[Zoho] Creating contact in Books API with orgId: ${booksOrgId}, region: ${region}, booksApiUrl: ${regionStrategy.getBooksApiUrl()}`);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/contacts?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactData),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Zoho] Create contact failed: ${errorText}`);
+      
+      // Try to parse error for better message
+      let errorMessage = `Failed to create contact: ${errorText}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        if (errorJson.code === 57) {
+          errorMessage = `Authorization failed. Ensure your Zoho app has Books API access and you're using the correct organization ID. Current org: ${booksOrgId}`;
+        }
+      } catch {
+        // Use raw error text
+      }
+      
+      throw new ZohoError(errorMessage, response.status);
+    }
+
+    const data = await response.json();
+    return data.contact;
+  }
+
+  /**
+   * Get contact by email
+   */
+  async getContactByEmail(orgId: string, email: string): Promise<ZohoContact | null> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(config.zoho.region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/contacts?organization_id=${booksOrgId}&email_contains=${encodeURIComponent(email)}`,
+      {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      const error = await response.text();
+      throw new ZohoError(`Failed to get contact: ${error}`, response.status);
+    }
+
+    const data = await response.json();
+    const contacts = data.contacts || [];
+    return contacts.length > 0 ? contacts[0] : null;
+  }
+
+  /**
+   * Create a sales order in Zoho Books
+   */
+  async createSalesOrder(orgId: string, salesOrderData: ZohoSalesOrder): Promise<ZohoSalesOrder> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    console.log(`[Zoho] Creating sales order in Books API with orgId: ${booksOrgId}, region: ${region}`);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/salesorders?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(salesOrderData),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new ZohoError(`Failed to create sales order: ${error}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.salesorder;
+  }
+
+  /**
+   * Create an invoice in Zoho Books
+   */
+  async createInvoice(orgId: string, invoiceData: Partial<ZohoInvoice>): Promise<ZohoInvoice> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    console.log(`[Zoho] Creating invoice in Books API with orgId: ${booksOrgId}, region: ${region}`);
+    console.log(`[Zoho] Invoice data:`, JSON.stringify(invoiceData, null, 2));
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/invoices?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(invoiceData),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Zoho] Create invoice failed: ${errorText}`);
+      throw new ZohoError(`Failed to create invoice: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    console.log(`[Zoho] Invoice created successfully:`, data.invoice?.invoice_id);
+    return data.invoice;
+  }
+
+  /**
+   * Get invoice details including PDF URL
+   */
+  async getInvoice(orgId: string, invoiceId: string): Promise<ZohoInvoice> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/invoices/${invoiceId}?organization_id=${booksOrgId}`,
+      {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new ZohoError(`Failed to get invoice: ${error}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.invoice;
+  }
+
+  /**
+   * Mark invoice as sent in Zoho Books
+   */
+  async sendInvoice(orgId: string, invoiceId: string): Promise<ZohoInvoice> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    console.log(`[Zoho] Marking invoice ${invoiceId} as sent`);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/invoices/${invoiceId}/status/sent?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Zoho] Send invoice failed: ${errorText}`);
+      throw new ZohoError(`Failed to send invoice: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    console.log(`[Zoho] Invoice marked as sent successfully`);
+    return data.invoice;
   }
 }
 

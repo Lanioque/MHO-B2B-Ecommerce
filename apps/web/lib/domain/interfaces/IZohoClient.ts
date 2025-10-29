@@ -107,6 +107,83 @@ export interface ZohoItem {
   last_modified_time?: string;
 }
 
+export interface ZohoContact {
+  contact_id?: string;
+  contact_name: string;
+  company_name?: string;
+  customer_name?: string;
+  email?: string;
+  phone?: string;
+  billing_address?: {
+    address?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  };
+  shipping_address?: {
+    address?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zip?: string;
+    country?: string;
+  };
+  contact_type?: 'customer' | 'vendor';
+  currency_code?: string;
+}
+
+export interface ZohoLineItem {
+  item_id?: string;
+  sku?: string;
+  name?: string;
+  description?: string;
+  quantity: number;
+  rate: number;
+  unit?: string;
+  tax_id?: string;
+  item_total?: number;
+}
+
+export interface ZohoSalesOrder {
+  salesorder_id?: string;
+  salesorder_number?: string;
+  customer_id: string;
+  customer_name?: string;
+  reference_number?: string;
+  date?: string;
+  delivery_date?: string;
+  line_items: ZohoLineItem[];
+  subtotal?: number;
+  tax_total?: number;
+  total?: number;
+  currency_code?: string;
+  notes?: string;
+  terms?: string;
+}
+
+export interface ZohoInvoice {
+  invoice_id?: string;
+  invoice_number?: string;
+  salesorder_id?: string;
+  customer_id: string;
+  customer_name?: string;
+  reference_number?: string;
+  date?: string;
+  due_date?: string;
+  payment_terms?: number;
+  line_items: ZohoLineItem[];
+  subtotal?: number;
+  tax_total?: number;
+  total?: number;
+  balance?: number;
+  currency_code?: string;
+  status?: string;
+  pdf_url?: string;
+  invoice_url?: string;
+}
+
 export interface IZohoClient {
   /**
    * Exchange authorization code for tokens
@@ -137,6 +214,36 @@ export interface IZohoClient {
    * Build OAuth authorization URL
    */
   getAuthUrl(orgId: string): string;
+
+  /**
+   * Create a contact (customer) in Zoho Books
+   */
+  createContact(orgId: string, contactData: ZohoContact): Promise<ZohoContact>;
+
+  /**
+   * Get contact by email
+   */
+  getContactByEmail(orgId: string, email: string): Promise<ZohoContact | null>;
+
+  /**
+   * Create a sales order in Zoho Books
+   */
+  createSalesOrder(orgId: string, salesOrderData: ZohoSalesOrder): Promise<ZohoSalesOrder>;
+
+  /**
+   * Create an invoice in Zoho Books
+   */
+  createInvoice(orgId: string, invoiceData: Partial<ZohoInvoice>): Promise<ZohoInvoice>;
+
+  /**
+   * Get invoice details including PDF URL
+   */
+  getInvoice(orgId: string, invoiceId: string): Promise<ZohoInvoice>;
+
+  /**
+   * Mark invoice as sent in Zoho Books
+   */
+  sendInvoice(orgId: string, invoiceId: string): Promise<ZohoInvoice>;
 }
 
 

@@ -6,6 +6,7 @@
 export interface ZohoRegionConfig {
   authUrl: string;
   apiUrl: string;
+  booksApiUrl: string;
 }
 
 export type ZohoRegion = 'eu' | 'us' | 'com' | 'in';
@@ -14,18 +15,22 @@ export const ZOHO_REGION_CONFIGS: Record<ZohoRegion, ZohoRegionConfig> = {
   eu: {
     authUrl: 'https://accounts.zoho.eu',
     apiUrl: 'https://www.zohoapis.eu/inventory/v1',
+    booksApiUrl: 'https://www.zohoapis.eu/books/v3',
   },
   us: {
     authUrl: 'https://accounts.zoho.com',
     apiUrl: 'https://www.zohoapis.com/inventory/v1',
+    booksApiUrl: 'https://www.zohoapis.com/books/v3',
   },
   com: {
     authUrl: 'https://accounts.zoho.com',
     apiUrl: 'https://www.zohoapis.com/inventory/v1',
+    booksApiUrl: 'https://www.zohoapis.com/books/v3',
   },
   in: {
     authUrl: 'https://accounts.zoho.in',
     apiUrl: 'https://www.zohoapis.in/inventory/v1',
+    booksApiUrl: 'https://www.zohoapis.in/books/v3',
   },
 } as const;
 
@@ -45,6 +50,7 @@ class Configuration {
     scope: string;
     region: ZohoRegion;
     organizationId?: string;
+    booksOrganizationId?: string;
     accessToken?: string;
     refreshToken?: string;
   };
@@ -69,6 +75,7 @@ class Configuration {
       scope: this.getOptional('ZOHO_SCOPE') || 'ZohoInventory.items.READ',
       region: this.getZohoRegion(),
       organizationId: this.getOptional('ZOHO_ORGANIZATION_ID'),
+      booksOrganizationId: this.getOptional('ZOHO_BOOKS_ORGANIZATION_ID') || this.getOptional('ZOHO_ORGANIZATION_ID'),
       accessToken: this.getOptional('ZOHO_ACCESS_TOKEN'),
       refreshToken: this.getOptional('ZOHO_REFRESH_TOKEN'),
     };

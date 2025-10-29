@@ -65,6 +65,35 @@ export class BranchService {
   }
 
   /**
+   * Create branch and sync to Zoho asynchronously
+   */
+  async createBranchWithZohoSync(
+    data: CreateBranchData
+  ): Promise<Branch & { billing: Address; shipping: Address }> {
+    const branch = await this.createBranch(data);
+
+    // Sync to Zoho asynchronously (don't block response)
+    this.syncBranchToZohoAsync(branch.id).catch((error) => {
+      console.error(`[BranchService] Failed to sync branch ${branch.id} to Zoho:`, error);
+    });
+
+    return branch;
+  }
+
+  /**
+   * Sync branch to Zoho (internal helper)
+   */
+  private async syncBranchToZohoAsync(branchId: string): Promise<void> {
+    try {
+      const { getBranchZohoSyncService } = await import('./branch-zoho-sync-service');
+      const syncService = getBranchZohoSyncService();
+      await syncService.syncBranchToZohoContact(branchId);
+    } catch (error) {
+      console.error(`[BranchService] Error syncing branch ${branchId} to Zoho:`, error);
+    }
+  }
+
+  /**
    * Get branches for organization
    */
   async getBranchesByOrgId(

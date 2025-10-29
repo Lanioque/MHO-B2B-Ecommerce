@@ -4,6 +4,8 @@ import { SessionHelper } from "@/lib/auth-helpers";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { prisma } from "@/lib/prisma";
 import { 
   Package, 
   ShoppingCart, 
@@ -15,7 +17,10 @@ import {
   Building2,
   LayoutDashboard,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  Clock,
+  CheckCircle
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -31,6 +36,124 @@ export default async function DashboardPage() {
   if (!membership) {
     redirect("/onboarding");
   }
+
+  const orgId = membership.orgId;
+
+  // Fetch recent activity - orders, invoices, and branches created in the last 7 days
+  const [recentOrders, recentInvoices, recentBranches] = await Promise.all([
+    prisma.order.findMany({
+      where: {
+        orgId,
+        createdAt: {
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: {
+        customer: true,
+        invoices: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    }),
+    prisma.invoice.findMany({
+      where: {
+        orgId,
+        createdAt: {
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: {
+        order: {
+          select: {
+            number: true,
+            id: true,
+          },
+        },
+      },
+    }),
+    prisma.branch.findMany({
+      where: {
+        orgId,
+        createdAt: {
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+    }),
+  ]);
+
+  // Combine activities into a single list with timestamps
+  interface ActivityItem {
+    id: string;
+    type: 'order' | 'invoice' | 'branch';
+    title: string;
+    description: string;
+    timestamp: Date;
+    link: string;
+    icon: typeof ShoppingCart;
+    color: string;
+  }
+
+  // Fetch branches separately for orders that have branchId
+  const branchIds = [...new Set(recentOrders.map(o => o.branchId).filter(Boolean))] as string[];
+  const branches = branchIds.length > 0
+    ? await prisma.branch.findMany({
+        where: { id: { in: branchIds } },
+      })
+    : [];
+
+  const activities: ActivityItem[] = [
+    ...recentOrders.map(order => {
+      const branch = branches.find(b => b.id === order.branchId);
+      return {
+        id: order.id,
+        type: 'order' as const,
+        title: `Order ${order.number}`,
+        description: `Created${branch ? ` for ${branch.name}` : ''}${order.customer ? ` by ${order.customer.firstName || order.customer.email}` : ''}`,
+        timestamp: order.createdAt,
+        link: `/orders/${order.id}`,
+        icon: ShoppingCart,
+        color: 'text-blue-600',
+      };
+    }),
+    ...recentInvoices.map(invoice => ({
+      id: invoice.id,
+      type: 'invoice' as const,
+      title: `Invoice ${invoice.number}`,
+      description: invoice.order ? `For order ${invoice.order.number}` : 'Generated',
+      timestamp: invoice.createdAt,
+      link: invoice.order ? `/orders/${invoice.order.id}` : '#',
+      icon: FileText,
+      color: 'text-green-600',
+    })),
+    ...recentBranches.map(branch => ({
+      id: branch.id,
+      type: 'branch' as const,
+      title: `Branch ${branch.name} created`,
+      description: 'New location added',
+      timestamp: branch.createdAt,
+      link: '/dashboard/branches',
+      icon: MapPin,
+      color: 'text-orange-600',
+    })),
+  ].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 10);
+
+  const formatTimeAgo = (date: Date) => {
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  };
 
   const quickActions = [
     {
@@ -253,21 +376,61 @@ export default async function DashboardPage() {
             <CardDescription>Latest updates from your platform</CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <LayoutDashboard className="h-8 w-8 text-gray-400" />
+            {activities.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <LayoutDashboard className="h-8 w-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 font-medium">No recent activity to display</p>
+                <p className="text-sm text-gray-400 mt-2">Start by adding products or processing orders</p>
+                <div className="mt-6 flex gap-3 justify-center">
+                  <Link href="/products">
+                    <Button size="sm" variant="outline">View Products</Button>
+                  </Link>
+                  <Link href="/dashboard/branches">
+                    <Button size="sm">Manage Branches</Button>
+                  </Link>
+                </div>
               </div>
-              <p className="text-gray-500 font-medium">No recent activity to display</p>
-              <p className="text-sm text-gray-400 mt-2">Start by adding products or processing orders</p>
-              <div className="mt-6 flex gap-3 justify-center">
-                <Link href="/products">
-                  <Button size="sm" variant="outline">View Products</Button>
-                </Link>
-                <Link href="/dashboard/branches">
-                  <Button size="sm">Manage Branches</Button>
-                </Link>
+            ) : (
+              <div className="space-y-4">
+                {activities.map((activity) => {
+                  const Icon = activity.icon;
+                  return (
+                    <Link
+                      key={activity.id}
+                      href={activity.link}
+                      className="flex items-start gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors group"
+                    >
+                      <div className={`p-2 rounded-lg bg-gray-100 group-hover:bg-gray-200 transition-colors ${activity.color}`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                            {activity.title}
+                          </p>
+                          <span className="text-xs text-gray-500 flex items-center gap-1 whitespace-nowrap">
+                            <Clock className="w-3 h-3" />
+                            {formatTimeAgo(activity.timestamp)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">{activity.description}</p>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" />
+                    </Link>
+                  );
+                })}
+                <div className="pt-4 border-t">
+                  <Link href="/orders">
+                    <Button variant="outline" className="w-full">
+                      View All Activity
+                      <ChevronRight className="w-4 h-4 ml-2" />
+                    </Button>
+                  </Link>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       </main>

@@ -8,6 +8,7 @@ import { ZohoRegion, ZohoRegionConfig, ZOHO_REGION_CONFIGS } from './index';
 export interface IRegionStrategy {
   getAuthUrl(): string;
   getApiUrl(): string;
+  getBooksApiUrl(): string;
   getRegion(): ZohoRegion;
 }
 
@@ -23,6 +24,10 @@ export class RegionStrategy implements IRegionStrategy {
 
   getApiUrl(): string {
     return this.config.apiUrl;
+  }
+
+  getBooksApiUrl(): string {
+    return this.config.booksApiUrl;
   }
 
   getRegion(): ZohoRegion {

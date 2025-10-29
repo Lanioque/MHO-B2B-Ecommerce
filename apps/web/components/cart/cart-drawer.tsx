@@ -122,8 +122,13 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
 
             {/* Actions */}
             <div className="space-y-2">
-              <Link href="/cart" onClick={closeDrawer} className="block">
+              <Link href="/checkout" onClick={closeDrawer} className="block">
                 <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                  Proceed to Checkout
+                </Button>
+              </Link>
+              <Link href="/cart" onClick={closeDrawer} className="block">
+                <Button variant="outline" className="w-full">
                   View Full Cart
                 </Button>
               </Link>
