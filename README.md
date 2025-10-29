@@ -478,136 +478,120 @@ Key models:
 1. **As a guest**, I want to browse products so that I can see what's available before registering.
 2. **As a guest**, I want to add items to a cart so that I can prepare an order before creating an account.
 
-## 🎯 Roadmap
+## 🎯 Roadmap - 6 Week Sprint Plan
 
-### Phase 1: Core Enhancements (Q1 2025)
-- [ ] **Payment Processing**
-  - Integration with payment gateway (Stripe/PayPal/Telr)
-  - Payment method management
-  - Automatic payment status updates
-  - Payment history tracking
-  - Refund processing
+### Week 1: Email Notifications & Basic Search
+**Goal: Improve user communication and product discovery**
 
-- [ ] **Email Notifications**
+- [ ] **Email Notifications** (Priority: High)
   - Order confirmation emails
   - Invoice delivery emails
   - Order status update notifications
   - Quotation sent/approved emails
-  - Low stock alerts
-
-- [ ] **Advanced Search & Filters**
+  
+- [ ] **Basic Product Search** (Priority: High)
   - Full-text product search
-  - Advanced filtering (price range, category, brand, etc.)
+  - Product filtering by category and brand
   - Product sorting options
+  - Search results highlighting
+
+### Week 2: Payment Processing Foundation
+**Goal: Enable online payments**
+
+- [ ] **Payment Gateway Integration** (Priority: Critical)
+  - Integration with payment gateway (Stripe/PayPal/Telr)
+  - Payment method selection
+  - Payment status tracking
+  - Payment confirmation handling
+
+- [ ] **Payment Management**
+  - Payment history view
+  - Payment receipt generation
+  - Payment failure handling
+
+### Week 3: Advanced Search & Filters
+**Goal: Enhanced product discovery**
+
+- [ ] **Advanced Search Features**
+  - Search autocomplete/suggestions
   - Saved search queries
-  - Search autocomplete
+  - Search filters (price range, stock status, tags)
+  - Search history
 
-### Phase 2: Business Intelligence (Q2 2025)
-- [ ] **Enhanced Analytics**
-  - Predictive analytics
-  - Sales forecasting
-  - Inventory trend analysis
-  - Customer behavior insights
-  - Custom dashboard widgets
+- [ ] **UI/UX Enhancements**
+  - Improved product grid/list views
+  - Quick filter sidebar
+  - Recent searches display
 
-- [ ] **Reporting System**
-  - Custom report builder
-  - Scheduled report generation
-  - Email report delivery
-  - Export to Excel/XLSX
-  - Report templates
-
-- [ ] **Product Recommendations**
-  - AI-powered product suggestions
-  - Frequently bought together
-  - Recently viewed products
-  - Personalized recommendations
-  - Trending products
-
-### Phase 3: Multi-currency & Internationalization (Q3 2025)
-- [ ] **Multi-currency Support**
-  - Currency selection per organization
-  - Real-time currency conversion
-  - Multi-currency pricing display
-  - Currency exchange rate updates
-  - Historical exchange rates
-
-- [ ] **Internationalization (i18n)**
-  - Multi-language support
-  - Language selection
-  - Localized date/time formats
-  - RTL language support
-  - Translated product descriptions
-
-### Phase 4: API & Integrations (Q3-Q4 2025)
-- [ ] **API Documentation**
-  - Swagger/OpenAPI documentation
-  - API versioning
-  - Interactive API explorer
-  - Code samples and SDKs
-  - Rate limiting documentation
-
-- [ ] **Additional Integrations**
-  - Salesforce integration
-  - QuickBooks integration
-  - Xero integration
-  - Shopify integration
-  - ERP system connectors
-
-- [ ] **Webhook System**
-  - Webhook configuration UI
-  - Event subscriptions
-  - Webhook retry mechanism
-  - Webhook logs and monitoring
-
-### Phase 5: Mobile & Advanced Features (Q4 2025)
-- [ ] **Mobile Application**
-  - iOS native app
-  - Android native app
-  - Push notifications
-  - Offline mode support
-  - Mobile-specific UI optimizations
+### Week 4: Bulk Operations & Workflow Automation
+**Goal: Improve efficiency for admins**
 
 - [ ] **Bulk Operations**
   - Bulk order creation
-  - Bulk product import/export
+  - Bulk product import/export (CSV)
   - Bulk quotation generation
-  - CSV import/export
+  - Bulk status updates
 
 - [ ] **Workflow Automation**
-  - Custom order approval workflows
   - Automated quotation expiration
-  - Inventory reorder points
+  - Inventory low stock alerts
+  - Automated order status transitions
   - Automated invoice generation rules
 
-### Phase 6: Advanced Features (2026)
-- [ ] **Subscription Management**
-  - Recurring orders
-  - Subscription plans
-  - Auto-renewal
-  - Subscription modifications
+### Week 5: API Documentation & Webhooks
+**Goal: Enable integrations**
 
-- [ ] **Loyalty Program**
-  - Points system
-  - Rewards management
-  - Discount tiers
-  - Referral program
+- [ ] **API Documentation** (Priority: Medium)
+  - Swagger/OpenAPI documentation setup
+  - API endpoint documentation
+  - Interactive API explorer
+  - Code samples and examples
 
-- [ ] **Advanced Inventory**
-  - Multi-location inventory
-  - Warehouse management
-  - Batch/lot tracking
-  - Serial number tracking
+- [ ] **Webhook System**
+  - Webhook configuration UI
+  - Event subscriptions (order created, invoice paid, etc.)
+  - Webhook delivery and retry mechanism
+  - Webhook logs and monitoring
 
-- [ ] **Collaboration Features**
-  - Team collaboration on orders
-  - Comments on orders/quotations
-  - Activity feed
-  - Document attachments
+### Week 6: Polish & Testing
+**Goal: Production readiness**
 
-### Future Considerations
+- [ ] **Quality Assurance**
+  - End-to-end testing of all features
+  - Performance optimization
+  - Security audit
+  - Bug fixes and refinements
+
+- [ ] **Documentation & Training**
+  - User manual completion
+  - Admin guide
+  - API documentation finalization
+  - Video tutorials (optional)
+
+- [ ] **Deployment Preparation**
+  - Production environment setup
+  - Database migration scripts
+  - Backup and recovery procedures
+  - Monitoring and alerting setup
+
+---
+
+## 🚀 Future Roadmap (Post-6 Weeks)
+
+### Next Phase: Enhanced Features
+- [ ] Enhanced Analytics (predictive analytics, forecasting)
+- [ ] Product Recommendations (AI-powered suggestions)
+- [ ] Multi-currency Support
+- [ ] Internationalization (i18n) - Multi-language support
+- [ ] Additional Integrations (Salesforce, QuickBooks, Xero)
+
+### Advanced Features
+- [ ] Mobile Application (iOS/Android)
+- [ ] Subscription Management (recurring orders)
+- [ ] Loyalty Program (points, rewards)
+- [ ] Advanced Inventory (multi-location, warehouse management)
+- [ ] Collaboration Features (comments, activity feed)
 - [ ] Advanced AI features (chatbot, natural language queries)
-- [ ] Voice ordering capabilities
 
 ## 🗺️ System Architecture Diagram
 
