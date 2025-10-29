@@ -222,10 +222,22 @@
             )
         ])
             .then(text => {
-                // Process Mermaid diagrams before markdown parsing
-                const processedText = processMermaidCode(text);
+                // Extract Mermaid blocks BEFORE markdown processing
+                const mermaidBlocks = [];
+                let mermaidIndex = 0;
                 
-                // Parse markdown
+                // Replace mermaid code blocks with placeholders and store the actual code
+                const textWithoutMermaid = text.replace(/```\s*mermaid\s*\n([\s\S]*?)\n\s*```/g, (match, code) => {
+                    const placeholder = `\n\n<!-- MERMAID_BLOCK_${mermaidIndex} -->\n\n`;
+                    mermaidBlocks.push({
+                        index: mermaidIndex,
+                        code: code.trim()
+                    });
+                    mermaidIndex++;
+                    return placeholder;
+                });
+                
+                // Parse markdown on text without Mermaid blocks
                 marked.setOptions({
                     breaks: true,
                     gfm: true,
@@ -233,7 +245,15 @@
                     mangle: false
                 });
                 
-                const html = marked.parse(processedText);
+                let html = marked.parse(textWithoutMermaid);
+                
+                // Replace placeholders with actual Mermaid divs
+                mermaidBlocks.forEach((block) => {
+                    const placeholder = `<!-- MERMAID_BLOCK_${block.index} -->`;
+                    const mermaidDiv = `<div class="mermaid" id="mermaid-diagram-${block.index + 1}">${block.code}</div>`;
+                    html = html.replace(placeholder, mermaidDiv);
+                });
+                
                 document.getElementById('content').innerHTML = html;
                 
                 // Render Mermaid diagrams after content is loaded
