@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 interface OrdersByStatus {
   status: string;
   count: number;
-  revenue: number;
+  spending: number;
 }
 
 interface StatusPieChartProps {

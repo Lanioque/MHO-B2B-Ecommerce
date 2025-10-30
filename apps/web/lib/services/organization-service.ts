@@ -33,6 +33,16 @@ export class OrganizationService {
     return org;
   }
 
+  /**
+   * Get user's organization (single organization per user)
+   */
+  async getUserOrganization(
+    userId: string
+  ): Promise<(Membership & { org: Organization }) | null> {
+    const memberships = await this.organizationRepository.findMembershipsByUserId(userId);
+    return memberships[0] || null;
+  }
+
   async getUserOrganizations(
     userId: string
   ): Promise<Array<Membership & { org: Organization }>> {
@@ -42,12 +52,19 @@ export class OrganizationService {
   /**
    * Create organization with initial membership
    * Uses transaction to ensure atomicity
+   * Enforces one organization per user constraint
    */
   async createOrganizationWithMembership(
     data: CreateOrganizationWithMembershipData
   ): Promise<{ organization: Organization; membership: Membership }> {
     return this.unitOfWork.execute(async (tx) => {
       const orgRepo = new (this.organizationRepository.constructor as any)(tx);
+
+      // Check if user already has a membership
+      const existingMembership = await orgRepo.findMembership(data.userId, undefined);
+      if (existingMembership) {
+        throw new Error('User already belongs to an organization. Each user can only have one organization.');
+      }
 
       // Create organization
       const organization = await orgRepo.create(data.organization);

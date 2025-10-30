@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BranchSelector } from '@/components/branch-selector';
-import { FileText, Plus, ArrowLeft, CheckCircle, X } from 'lucide-react';
-import Link from 'next/link';
+import { FileText, Plus, CheckCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Quotation {
@@ -100,12 +100,12 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
 
       const data = await response.json();
       if (data.order) {
-        alert(`Quotation converted to order ${data.order.number}`);
+        toast.success(`Quotation converted to order ${data.order.number}`);
         fetchQuotations();
       }
     } catch (err) {
       console.error('Failed to convert quotation:', err);
-      alert('Failed to convert quotation to order');
+      toast.error('Failed to convert quotation to order');
     } finally {
       setConverting(null);
     }
@@ -119,57 +119,46 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                  Quotations
-                </h1>
-                <p className="text-sm text-gray-500">Manage your quotations</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {isAdmin && (
-                <BranchSelector
-                  currentBranchId={selectedBranch}
-                  onBranchChange={setSelectedBranch}
-                />
-              )}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="EXPIRED">Expired</option>
-                <option value="CONVERTED">Converted</option>
-              </select>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Quotation
-              </Button>
+    <main className="container mx-auto px-4 lg:px-8 py-8">
+      {/* Page Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <FileText className="h-6 w-6 text-blue-600" />
+                Quotations
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">Manage your quotations</p>
             </div>
           </div>
+          <div className="flex items-center gap-4">
+            {isAdmin && (
+              <BranchSelector
+                currentBranchId={selectedBranch}
+                onBranchChange={setSelectedBranch}
+              />
+            )}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border rounded-md text-sm"
+            >
+              <option value="all">All Status</option>
+              <option value="DRAFT">Draft</option>
+              <option value="SENT">Sent</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="EXPIRED">Expired</option>
+              <option value="CONVERTED">Converted</option>
+            </select>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Quotation
+            </Button>
+          </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 lg:px-8 py-8">
+      </div>
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-600">
             {error}
@@ -299,8 +288,7 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
             </CardContent>
           </Card>
         )}
-      </main>
-    </div>
+    </main>
   );
 }
 

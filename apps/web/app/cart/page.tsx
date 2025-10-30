@@ -5,12 +5,22 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCart } from '@/lib/hooks/use-cart';
 import { CartItem } from '@/components/cart/cart-item';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -29,6 +39,8 @@ export default function CartPage() {
     fetchCart,
   } = useCart();
 
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+
   useEffect(() => {
     fetchCart(orgId);
   }, [orgId, fetchCart]);
@@ -41,9 +53,8 @@ export default function CartPage() {
   };
 
   const handleClearCart = async () => {
-    if (confirm('Are you sure you want to clear your cart?')) {
-      await clearCart(orgId);
-    }
+    await clearCart(orgId);
+    setIsClearDialogOpen(false);
   };
 
   return (
@@ -126,7 +137,7 @@ export default function CartPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleClearCart}
+                    onClick={() => setIsClearDialogOpen(true)}
                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -200,6 +211,27 @@ export default function CartPage() {
           </div>
         )}
       </main>
+
+      {/* Clear Cart Confirmation Dialog */}
+      <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Cart</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to clear your cart? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearCart}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Clear Cart
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -22,6 +22,29 @@ const createBranchSchema = z.object({
     postalCode: z.string(),
     country: z.string(),
   }),
+  // Status and Description
+  status: z.string().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  // Budget Information
+  monthlyBudget: z.number().optional(),
+  yearlyBudget: z.number().optional(),
+  budgetCurrency: z.string().optional(),
+  // Contact Information
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  website: z.string().url().optional().or(z.literal('')),
+  // Manager Information
+  managerName: z.string().optional(),
+  managerEmail: z.string().email().optional().or(z.literal('')),
+  managerPhone: z.string().optional(),
+  // Operating Information
+  operatingHours: z.string().optional(),
+  capacity: z.number().optional(),
+  employeeCount: z.number().optional(),
+  // Financial Information
+  costCenterCode: z.string().optional(),
+  taxId: z.string().optional(),
 });
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -223,7 +224,7 @@ export default function ProductsPage() {
 
   const handleAddToCart = async (productId: string, quantity: number = 1) => {
     if (!orgId) {
-      alert('Please wait for organization to load...');
+      toast.warning('Please wait for organization to load...');
       return;
     }
     
@@ -233,9 +234,10 @@ export default function ProductsPage() {
       setJustAdded(productId);
       setTimeout(() => setJustAdded(null), 2000);
       openDrawer();
+      toast.success('Product added to cart');
     } catch (err) {
       console.error('Failed to add to cart:', err);
-      alert('Failed to add item to cart');
+      toast.error('Failed to add item to cart');
     } finally {
       setAddingToCart(null);
     }
@@ -249,88 +251,76 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-xl border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-lg">
-                <Package2 className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                  Product Catalog
-                </h1>
-                <p className="text-sm text-gray-600">
-                  {data ? `${data.pagination.total} products available` : 'Browse our collection'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* Search Bar */}
-              <div className="relative hidden sm:block">
-                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  type="text"
-                  placeholder="Search by name, SKU, category, brand, tags..."
-                  value={searchQuery}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-10 w-64"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => {
-                      setSearchQuery("");
-                      setSelectedCategory(null);
-                    }}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-              {orgId && <CartButton orgId={orgId} branchId={branchId || undefined} />}
-              <BranchSelector onBranchChange={async (newBranchId) => {
-                // Update branchId state and localStorage
-                setBranchId(newBranchId);
-                localStorage.setItem("currentBranchId", newBranchId);
-                
-                // Fetch branch to get orgId when branch changes
-                try {
-                  const branchResponse = await fetch(`/api/branches/${newBranchId}`, { credentials: "include" });
-                  if (branchResponse.ok) {
-                    const branchData = await branchResponse.json();
-                    if (branchData.branch?.orgId) {
-                      const newOrgId = branchData.branch.orgId;
-                      setOrgId(newOrgId);
-                      localStorage.setItem("currentOrgId", newOrgId);
-                      // Reset to first page and refetch products
-                      setPage(1);
-                    }
-                  }
-                } catch (err) {
-                  console.error("Failed to fetch branch org:", err);
-                }
-              }} />
-              <Link href="/dashboard">
-                <Button variant="outline" size="sm">
-                  Dashboard
-                </Button>
-              </Link>
-              <Link href="/test-zoho">
-                <Button variant="default" size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                  <TrendingUp className="w-4 h-4 mr-2" />
-                  Sync Zoho
-                </Button>
-              </Link>
-            </div>
+    <main className="container mx-auto px-4 py-8">
+      {/* Page Header */}
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg shadow-lg">
+            <Package2 className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Product Catalog
+            </h1>
+            <p className="text-sm text-gray-600">
+              {data ? `${data.pagination.total} products available` : 'Browse our collection'}
+            </p>
           </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+        <div className="flex items-center gap-3">
+          {/* Search Bar */}
+          <div className="relative hidden sm:block">
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              type="text"
+              placeholder="Search by name, SKU, category, brand, tags..."
+              value={searchQuery}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10 w-64"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedCategory(null);
+                }}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          {orgId && <CartButton orgId={orgId} branchId={branchId || undefined} />}
+          <BranchSelector onBranchChange={async (newBranchId) => {
+            // Update branchId state and localStorage
+            setBranchId(newBranchId);
+            localStorage.setItem("currentBranchId", newBranchId);
+            
+            // Fetch branch to get orgId when branch changes
+            try {
+              const branchResponse = await fetch(`/api/branches/${newBranchId}`, { credentials: "include" });
+              if (branchResponse.ok) {
+                const branchData = await branchResponse.json();
+                if (branchData.branch?.orgId) {
+                  const newOrgId = branchData.branch.orgId;
+                  setOrgId(newOrgId);
+                  localStorage.setItem("currentOrgId", newOrgId);
+                  // Reset to first page and refetch products
+                  setPage(1);
+                }
+              }
+            } catch (err) {
+              console.error("Failed to fetch branch org:", err);
+            }
+          }} />
+          <Link href="/test-zoho">
+            <Button variant="default" size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+              <TrendingUp className="w-4 h-4 mr-2" />
+              Sync Zoho
+            </Button>
+          </Link>
+        </div>
+      </div>
         {/* Category Filter */}
         {categories.length > 0 && (
           <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
@@ -663,7 +653,6 @@ export default function ProductsPage() {
             </CardContent>
           </Card>
         )}
-      </main>
 
       {/* Product Detail Dialog */}
       <Dialog open={!!selectedProduct} onOpenChange={() => {
@@ -801,6 +790,6 @@ export default function ProductsPage() {
 
       {/* Cart Drawer */}
       {orgId ? <CartDrawer orgId={orgId} branchId={branchId || undefined} /> : null}
-    </div>
+    </main>
   );
 }

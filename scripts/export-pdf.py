@@ -1,17 +1,29 @@
 #!/usr/bin/env python3
 """
 Export README.md to PDF with Mermaid diagrams using md2pdf-mermaid
+
+Usage:
+    python scripts/export-pdf.py [--scale SCALE] [--orientation portrait|landscape]
+    
+Options:
+    --scale SCALE          Mermaid diagram scale (default: 3, higher = larger/sharp)
+    --orientation ORIENT  Page orientation: portrait or landscape (default: landscape)
 """
 
 import sys
-import os
+import argparse
 from pathlib import Path
-
-# Add parent directory to path if needed
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 try:
     from md2pdf import convert_markdown_to_pdf
+    
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Export README.md to PDF with Mermaid diagrams')
+    parser.add_argument('--scale', type=int, default=3, 
+                       help='Mermaid diagram scale (default: 3, recommended: 2-4)')
+    parser.add_argument('--orientation', choices=['portrait', 'landscape'], default='landscape',
+                       help='Page orientation (default: landscape)')
+    args = parser.parse_args()
     
     # Get paths
     script_dir = Path(__file__).parent
@@ -24,12 +36,35 @@ try:
         sys.exit(1)
     
     print(f"📄 Reading: {readme_path}")
+    
+    # Read the markdown file content
+    with open(readme_path, 'r', encoding='utf-8') as f:
+        markdown_content = f.read()
+    
+    print(f"📄 Converting {len(markdown_content)} characters to PDF...")
+    print(f"📄 Settings: scale={args.scale}, orientation={args.orientation}")
     print(f"📄 Writing: {output_path}")
     
-    # Convert markdown to PDF
-    convert_markdown_to_pdf(str(readme_path), str(output_path))
+    # Convert markdown to PDF - pass content as string, not file path
+    result = convert_markdown_to_pdf(
+        markdown_content,
+        str(output_path),
+        title='MHO B2B E-commerce Platform Documentation',
+        enable_mermaid=True,
+        page_numbers=True,
+        page_size='a4',
+        orientation=args.orientation,
+        mermaid_scale=args.scale,
+        mermaid_theme='default'
+    )
     
-    print(f"✅ PDF exported successfully to: {output_path}")
+    if result.get('success'):
+        print(f"✅ PDF exported successfully to: {output_path}")
+        print(f"   - Mermaid diagrams found: {result.get('mermaid_count', 0)}")
+        print(f"   - Mermaid diagrams rendered: {result.get('mermaid_rendered', 0)}")
+    else:
+        print(f"❌ Error: PDF conversion failed")
+        sys.exit(1)
     
 except ImportError as e:
     print(f"❌ Error importing md2pdf: {e}")

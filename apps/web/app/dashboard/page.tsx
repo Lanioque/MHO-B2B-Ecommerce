@@ -9,14 +9,11 @@ import { prisma } from "@/lib/prisma";
 import { 
   Package, 
   ShoppingCart, 
-  Users, 
   Settings, 
   MapPin, 
   Zap, 
   TestTube, 
-  Building2,
   LayoutDashboard,
-  LogOut,
   ChevronRight,
   FileText,
   Clock,
@@ -39,8 +36,20 @@ export default async function DashboardPage() {
 
   const orgId = membership.orgId;
 
-  // Fetch recent activity - orders, invoices, and branches created in the last 7 days
-  const [recentOrders, recentInvoices, recentBranches] = await Promise.all([
+  // Fetch stats for dashboard cards
+  const [totalProducts, pendingOrders, activeBranches, recentOrders, recentInvoices, recentBranches] = await Promise.all([
+    prisma.product.count(),
+    prisma.order.count({
+      where: {
+        orgId,
+        status: 'PENDING',
+      },
+    }),
+    prisma.branch.count({
+      where: {
+        orgId,
+      },
+    }),
     prisma.order.findMany({
       where: {
         orgId,
@@ -193,15 +202,6 @@ export default async function DashboardPage() {
       iconColor: "text-teal-600"
     },
     {
-      title: "Customers",
-      description: "Manage your customer database",
-      icon: Users,
-      href: "/customers",
-      color: "bg-purple-500",
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600"
-    },
-    {
       title: "Branches",
       description: "Manage your business locations",
       icon: MapPin,
@@ -237,56 +237,10 @@ export default async function DashboardPage() {
       icon: TestTube,
       href: "/test-zoho",
     },
-    {
-      title: "My Organizations",
-      description: "View and copy your organization IDs",
-      icon: Building2,
-      href: "/my-orgs",
-    }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-white font-bold text-lg">M</span>
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">MHO Platform</h1>
-                  <p className="text-xs text-gray-500">E-commerce Management</p>
-                </div>
-              </div>
-            </div>
-            <nav className="flex items-center space-x-3">
-              <div className="hidden md:flex items-center space-x-2 px-4 py-2 bg-gray-50 rounded-lg">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm font-semibold">
-                    {session.user.name?.charAt(0).toUpperCase() || session.user.email?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="text-sm">
-                  <p className="font-medium text-gray-900">{session.user.name || "User"}</p>
-                  <p className="text-xs text-gray-500">{membership.role}</p>
-                </div>
-              </div>
-              <Link href="/api/auth/signout">
-                <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                  <LogOut className="h-4 w-4" />
-                  <span className="hidden sm:inline">Sign Out</span>
-                </Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 lg:px-8 py-8">
+    <main className="container mx-auto px-4 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-2">
@@ -297,43 +251,49 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-2">
-              <CardDescription>Total Products</CardDescription>
-              <CardTitle className="text-3xl">0</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-500">Coming soon</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-2">
-              <CardDescription>Pending Orders</CardDescription>
-              <CardTitle className="text-3xl">0</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-500">Coming soon</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-purple-500 hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-2">
-              <CardDescription>Total Customers</CardDescription>
-              <CardTitle className="text-3xl">0</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-500">Coming soon</p>
-            </CardContent>
-          </Card>
-          <Card className="border-l-4 border-l-orange-500 hover:shadow-lg transition-shadow">
-            <CardHeader className="pb-2">
-              <CardDescription>Active Branches</CardDescription>
-              <CardTitle className="text-3xl">0</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-gray-500">Coming soon</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <Link href="/products">
+            <Card className="border-l-4 border-l-blue-500 hover:shadow-lg transition-shadow cursor-pointer group">
+              <CardHeader className="pb-2">
+                <CardDescription>Total Products</CardDescription>
+                <CardTitle className="text-3xl group-hover:text-blue-600 transition-colors">{totalProducts.toLocaleString()}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Package className="w-3 h-3" />
+                  View all products
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/orders?status=PENDING">
+            <Card className="border-l-4 border-l-green-500 hover:shadow-lg transition-shadow cursor-pointer group">
+              <CardHeader className="pb-2">
+                <CardDescription>Pending Orders</CardDescription>
+                <CardTitle className="text-3xl group-hover:text-green-600 transition-colors">{pendingOrders.toLocaleString()}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Requires attention
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/dashboard/branches">
+            <Card className="border-l-4 border-l-orange-500 hover:shadow-lg transition-shadow cursor-pointer group">
+              <CardHeader className="pb-2">
+                <CardDescription>Active Branches</CardDescription>
+                <CardTitle className="text-3xl group-hover:text-orange-600 transition-colors">{activeBranches.toLocaleString()}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  Manage locations
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         {/* Quick Actions */}
@@ -451,30 +411,6 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </main>
-
-      {/* Footer */}
-      <footer className="border-t bg-white mt-12">
-        <div className="container mx-auto px-4 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-center md:text-left">
-              <p className="text-sm text-gray-600">© 2025 MHO Platform. All rights reserved.</p>
-              <p className="text-xs text-gray-400 mt-1">Built with Next.js, Prisma, and modern technology</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="/help" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
-                Help Center
-              </Link>
-              <Link href="/docs" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
-                Documentation
-              </Link>
-              <Link href="/support" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
-                Support
-              </Link>
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </main>
   );
 }

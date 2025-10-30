@@ -41,23 +41,27 @@ async function createOrgHandler(req: NextRequest) {
 
 /**
  * GET /api/orgs
- * List user's organizations
+ * Get user's organization (single organization per user)
  * Thin controller - delegates to OrganizationService
  */
 async function getUserOrgsHandler(req: NextRequest) {
   const session = await requireAuth();
   const organizationService = createOrganizationService();
 
-  // Get user's organizations
-  const memberships = await organizationService.getUserOrganizations(session.user.id);
+  // Get user's organization (single org per user)
+  const membership = await organizationService.getUserOrganization(session.user.id);
 
-  const orgs = memberships.map((m) => ({
-    ...m.org,
-    role: m.role,
-    membershipId: m.id,
-  }));
+  if (!membership) {
+    return NextResponse.json({ orgs: [] });
+  }
 
-  return NextResponse.json({ orgs });
+  const org = {
+    ...membership.org,
+    role: membership.role,
+    membershipId: membership.id,
+  };
+
+  return NextResponse.json({ orgs: [org] });
 }
 
 export const POST = withErrorHandler(createOrgHandler);

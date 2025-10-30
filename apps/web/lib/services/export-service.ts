@@ -19,9 +19,8 @@ export class ExportService {
 
     // Summary metrics
     csvData.push(['Metric', 'Value']);
-    csvData.push(['Total Spent Amount', this.formatCurrency(data.totalRevenue)]);
+    csvData.push(['Total Spent Amount', this.formatCurrency(data.totalSpending)]);
     csvData.push(['Total Orders', data.totalOrders]);
-    csvData.push(['Total Customers', data.totalCustomers]);
     csvData.push(['Average Order Value', this.formatCurrency(data.averageOrderValue)]);
     csvData.push(['Average Cost Per Employee', this.formatCurrency(data.averageCostPerEmployee)]);
     csvData.push([]);
@@ -29,8 +28,8 @@ export class ExportService {
     // Spending by period
     csvData.push(['Spending Over Time']);
     csvData.push(['Date', 'Spent Amount', 'Orders']);
-    data.revenueByPeriod.forEach((item) => {
-      csvData.push([item.date, this.formatCurrency(item.revenue), item.orders]);
+    data.spendingByPeriod.forEach((item) => {
+      csvData.push([item.date, this.formatCurrency(item.spending), item.orders]);
     });
     csvData.push([]);
 
@@ -38,7 +37,7 @@ export class ExportService {
     csvData.push(['Orders by Status']);
     csvData.push(['Status', 'Count', 'Spent Amount']);
     data.ordersByStatus.forEach((item) => {
-      csvData.push([item.status, item.count, this.formatCurrency(item.revenue)]);
+      csvData.push([item.status, item.count, this.formatCurrency(item.spending)]);
     });
     csvData.push([]);
 
@@ -49,7 +48,7 @@ export class ExportService {
       csvData.push([
         item.productName,
         item.sku,
-        this.formatCurrency(item.revenue),
+        this.formatCurrency(item.spending),
         item.orders,
         item.quantity,
       ]);
@@ -62,7 +61,7 @@ export class ExportService {
     data.categoryBreakdown.forEach((item) => {
       csvData.push([
         item.category,
-        this.formatCurrency(item.revenue),
+        this.formatCurrency(item.spending),
         item.orders,
         `${item.percentage.toFixed(2)}%`,
       ]);
@@ -108,9 +107,8 @@ export class ExportService {
       startY: yPosition,
       head: [['Metric', 'Value']],
       body: [
-        ['Total Spent Amount', this.formatCurrency(data.totalRevenue)],
+        ['Total Spent Amount', this.formatCurrency(data.totalSpending)],
         ['Total Orders', data.totalOrders.toString()],
-        ['Total Customers', data.totalCustomers.toString()],
         ['Average Order Value', this.formatCurrency(data.averageOrderValue)],
         [
           'Average Cost Per Employee',
@@ -131,7 +129,7 @@ export class ExportService {
         body: data.ordersByStatus.map((item) => [
           item.status,
           item.count.toString(),
-          this.formatCurrency(item.revenue),
+          this.formatCurrency(item.spending),
         ]),
       });
       yPosition = (doc as any).lastAutoTable.finalY + 15;
@@ -148,7 +146,7 @@ export class ExportService {
         body: data.topProducts.slice(0, 10).map((item) => [
           item.productName.substring(0, 30),
           item.sku,
-          this.formatCurrency(item.revenue),
+          this.formatCurrency(item.spending),
           item.orders.toString(),
           item.quantity.toString(),
         ]),
@@ -166,7 +164,7 @@ export class ExportService {
           head: [['Category', 'Spent Amount', 'Orders', 'Percentage']],
         body: data.categoryBreakdown.map((item) => [
           item.category,
-          this.formatCurrency(item.revenue),
+          this.formatCurrency(item.spending),
           item.orders.toString(),
           `${item.percentage.toFixed(2)}%`,
         ]),

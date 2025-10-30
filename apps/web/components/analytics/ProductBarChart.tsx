@@ -7,7 +7,7 @@ interface ProductBreakdown {
   productId: string;
   productName: string;
   sku: string;
-  revenue: number;
+  spending: number;
   orders: number;
   quantity: number;
 }
@@ -57,7 +57,7 @@ export function ProductBarChart({ data }: ProductBarChartProps) {
               <YAxis tickFormatter={formatCurrency} />
               <Tooltip formatter={(value: number) => formatCurrency(value)} />
               <Legend />
-              <Bar dataKey="revenue" fill="#10b981" name="Spent Amount" />
+              <Bar dataKey="spending" fill="#10b981" name="Spent Amount" />
             </BarChart>
           </ResponsiveContainer>
         )}

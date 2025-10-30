@@ -13,15 +13,15 @@ export interface AnalyticsFilters {
   branchId?: string;
 }
 
-export interface RevenueDataPoint {
+export interface SpendingDataPoint {
   date: string;
-  revenue: number; // Kept as revenue for internal consistency, but displayed as "Spent Amount"
+  spending: number;
   orders: number;
 }
 
 export interface CategoryBreakdown {
   category: string;
-  revenue: number;
+  spending: number;
   orders: number;
   percentage: number;
 }
@@ -30,7 +30,7 @@ export interface ProductBreakdown {
   productId: string;
   productName: string;
   sku: string;
-  revenue: number;
+  spending: number;
   orders: number;
   quantity: number;
 }
@@ -38,23 +38,22 @@ export interface ProductBreakdown {
 export interface OrdersByStatus {
   status: string;
   count: number;
-  revenue: number;
+  spending: number;
 }
 
 export interface OrganizationAnalytics {
-  totalRevenue: number;
+  totalSpending: number;
   totalOrders: number;
   pendingOrders: number;
-  totalCustomers: number;
   averageOrderValue: number;
   averageCostPerEmployee: number;
-  revenueByPeriod: RevenueDataPoint[];
+  spendingByPeriod: SpendingDataPoint[];
   ordersByStatus: OrdersByStatus[];
   topProducts: ProductBreakdown[];
   categoryBreakdown: CategoryBreakdown[];
   recentOrders: any[];
   recentQuotations: any[];
-  previousPeriodRevenue?: number;
+  previousPeriodSpending?: number;
 }
 
 export class AnalyticsService {
@@ -77,23 +76,21 @@ export class AnalyticsService {
 
     // Fetch all analytics data in parallel
     const [
-      revenueData,
+      spendingData,
       ordersCount,
       pendingOrdersCount,
-      customersCount,
       employeeCount,
       ordersByStatusData,
       topProductsData,
       categoryData,
       recentOrders,
       recentQuotations,
-      previousPeriodRevenue,
+      previousPeriodSpending,
     ] = await Promise.all([
-      this.getTotalRevenue(whereClause),
+      this.getTotalSpending(whereClause),
       this.getOrdersCount(whereClause),
       this.getPendingOrdersCount(whereClause),
-      this.getCustomersCount({ orgId, ...(branchId && { branchId }) }),
-      this.getEmployeeCount(orgId),
+      this.getEmployeeCount(orgId, branchId),
       this.getOrdersByStatus(whereClause),
       this.getTopProducts(whereClause, 10),
       this.getCategoryBreakdown(whereClause),
@@ -102,28 +99,27 @@ export class AnalyticsService {
         { orgId, startDate, endDate, ...(branchId && { branchId }) },
         10
       ),
-      this.getPreviousPeriodRevenue(orgId, startDate, endDate, branchId),
+      this.getPreviousPeriodSpending(orgId, startDate, endDate, branchId),
     ]);
 
-    // Convert revenue from cents to dollars
-    const totalRevenueCents = revenueData._sum?.totalCents || 0;
-    const totalRevenue = totalRevenueCents / 100;
+    // Convert spending from cents to dollars
+    const totalSpendingCents = spendingData._sum?.totalCents || 0;
+    const totalSpending = totalSpendingCents / 100;
     const totalOrders = ordersCount || 0;
     const pendingOrders = pendingOrdersCount || 0;
-    const totalCustomers = customersCount || 0;
     const averageOrderValue =
-      totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      totalOrders > 0 ? totalSpending / totalOrders : 0;
+    // Calculate average cost per employee: total spent in period / employee count
     const averageCostPerEmployee =
-      employeeCount > 0 ? totalRevenue / employeeCount : 0;
+      employeeCount > 0 ? totalSpending / employeeCount : 0;
 
     return {
-      totalRevenue,
+      totalSpending,
       totalOrders,
       pendingOrders,
-      totalCustomers,
       averageOrderValue,
       averageCostPerEmployee,
-      revenueByPeriod: await this.getRevenueByPeriod(
+      spendingByPeriod: await this.getSpendingByPeriod(
         whereClause,
         startDate,
         endDate
@@ -133,14 +129,14 @@ export class AnalyticsService {
       categoryBreakdown: categoryData,
       recentOrders,
       recentQuotations,
-      previousPeriodRevenue: previousPeriodRevenue?._sum?.totalCents ? previousPeriodRevenue._sum.totalCents / 100 : 0,
+      previousPeriodSpending: previousPeriodSpending?._sum?.totalCents ? previousPeriodSpending._sum.totalCents / 100 : 0,
     };
   }
 
   /**
-   * Get total revenue from paid and pending orders
+   * Get total spending from paid and pending orders
    */
-  private async getTotalRevenue(whereClause: any) {
+  private async getTotalSpending(whereClause: any) {
     return prisma.order.aggregate({
       where: {
         ...whereClause,
@@ -177,17 +173,99 @@ export class AnalyticsService {
 
   /**
    * Get total customers count
+   * If branchId is provided, counts customers who have orders/quotations for that branch
    */
   private async getCustomersCount(whereClause: any) {
+    const { branchId, ...rest } = whereClause;
+    
+    // If branchId is provided, filter customers through their orders/quotations
+    if (branchId) {
+      // Count distinct customers who have orders or quotations for this branch
+      const customersWithOrders = await prisma.customer.findMany({
+        where: {
+          ...rest,
+          OR: [
+            {
+              orders: {
+                some: {
+                  branchId,
+                },
+              },
+            },
+            {
+              quotations: {
+                some: {
+                  branchId,
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+        },
+      });
+      
+      return customersWithOrders.length;
+    }
+    
+    // Otherwise, count all customers for the org
     return prisma.customer.count({
-      where: whereClause,
+      where: rest,
     });
   }
 
   /**
    * Get employee count for organization
+   * Uses branch's employeeCount field if set, otherwise counts from Employee table
+   * Respects branch filtering if branchId is provided
    */
-  private async getEmployeeCount(orgId: string): Promise<number> {
+  private async getEmployeeCount(orgId: string, branchId?: string): Promise<number> {
+    // If a specific branch is selected, use its employeeCount field
+    if (branchId) {
+      const branch = await prisma.branch.findUnique({
+        where: { id: branchId },
+        select: { employeeCount: true },
+      });
+      
+      // If branch has employeeCount set, use it
+      if (branch?.employeeCount !== null && branch?.employeeCount !== undefined) {
+        return branch.employeeCount || 1; // Default to 1 to avoid division by zero
+      }
+      
+      // Otherwise, count employees for this branch
+      const result = await prisma.employee.count({
+        where: {
+          orgId,
+          branchId,
+          status: 'ACTIVE',
+        },
+      });
+      return result || 1;
+    }
+    
+    // For organization-wide, sum employeeCount from all active branches
+    const branches = await prisma.branch.findMany({
+      where: {
+        orgId,
+        status: 'ACTIVE',
+      },
+      select: {
+        employeeCount: true,
+      },
+    });
+    
+    // Sum up employeeCount from branches (if set)
+    const totalFromBranches = branches.reduce((sum, branch) => {
+      return sum + (branch.employeeCount || 0);
+    }, 0);
+    
+    // If we have employeeCount from branches, use it
+    if (totalFromBranches > 0) {
+      return totalFromBranches;
+    }
+    
+    // Fallback: count from Employee table
     const result = await prisma.employee.count({
       where: {
         orgId,
@@ -198,13 +276,13 @@ export class AnalyticsService {
   }
 
   /**
-   * Get revenue by period (daily breakdown)
+   * Get spending by period (daily breakdown)
    */
-  private async getRevenueByPeriod(
+  private async getSpendingByPeriod(
     whereClause: any,
     startDate: Date,
     endDate: Date
-  ): Promise<RevenueDataPoint[]> {
+  ): Promise<SpendingDataPoint[]> {
     const orders = await prisma.order.findMany({
       where: {
         ...whereClause,
@@ -221,24 +299,24 @@ export class AnalyticsService {
     });
 
     // Group by date
-    const dateMap = new Map<string, { revenue: number; orders: Set<string> }>();
+    const dateMap = new Map<string, { spending: number; orders: Set<string> }>();
 
     orders.forEach((order) => {
       const dateKey = format(order.createdAt, 'yyyy-MM-dd');
       const existing = dateMap.get(dateKey) || {
-        revenue: 0,
+        spending: 0,
         orders: new Set<string>(),
       };
-      existing.revenue += order.totalCents;
+      existing.spending += order.totalCents;
       existing.orders.add(order.id);
       dateMap.set(dateKey, existing);
     });
 
     // Convert to array and sort by date
-    const result: RevenueDataPoint[] = Array.from(dateMap.entries())
+    const result: SpendingDataPoint[] = Array.from(dateMap.entries())
       .map(([date, data]) => ({
         date,
-        revenue: data.revenue / 100, // Convert cents to dollars
+        spending: data.spending / 100, // Convert cents to dollars
         orders: data.orders.size,
       }))
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -266,12 +344,12 @@ export class AnalyticsService {
     return orders.map((item) => ({
       status: item.status,
       count: item._count.id,
-      revenue: (item._sum.totalCents || 0) / 100,
+      spending: (item._sum.totalCents || 0) / 100,
     }));
   }
 
   /**
-   * Get top products by revenue
+   * Get top products by spending
    */
   private async getTopProducts(
     whereClause: any,
@@ -304,7 +382,7 @@ export class AnalyticsService {
       {
         productName: string;
         sku: string;
-        revenue: number;
+        spending: number;
         quantity: number;
         orders: Set<string>;
       }
@@ -315,11 +393,11 @@ export class AnalyticsService {
         const existing = productMap.get(item.productId) || {
           productName: item.product.name,
           sku: item.product.sku,
-          revenue: 0,
+          spending: 0,
           quantity: 0,
           orders: new Set<string>(),
         };
-        existing.revenue += item.subtotalCents;
+        existing.spending += item.subtotalCents;
         existing.quantity += item.quantity;
         existing.orders.add(order.id);
         productMap.set(item.productId, existing);
@@ -331,11 +409,11 @@ export class AnalyticsService {
         productId,
         productName: data.productName,
         sku: data.sku,
-        revenue: data.revenue / 100,
+        spending: data.spending / 100,
         orders: data.orders.size,
         quantity: data.quantity,
       }))
-      .sort((a, b) => b.revenue - a.revenue)
+      .sort((a, b) => b.spending - a.spending)
       .slice(0, limit);
   }
 
@@ -368,38 +446,38 @@ export class AnalyticsService {
 
     const categoryMap = new Map<
       string,
-      { revenue: number; orders: Set<string> }
+      { spending: number; orders: Set<string> }
     >();
 
     orders.forEach((order) => {
       order.items.forEach((item) => {
         const category = item.product.categoryName || 'Uncategorized';
         const existing = categoryMap.get(category) || {
-          revenue: 0,
+          spending: 0,
           orders: new Set<string>(),
         };
-        existing.revenue += item.subtotalCents;
+        existing.spending += item.subtotalCents;
         existing.orders.add(order.id);
         categoryMap.set(category, existing);
       });
     });
 
-    const totalRevenue = Array.from(categoryMap.values()).reduce(
-      (sum, cat) => sum + cat.revenue,
+    const totalSpending = Array.from(categoryMap.values()).reduce(
+      (sum, cat) => sum + cat.spending,
       0
     );
 
     return Array.from(categoryMap.entries())
       .map(([category, data]) => ({
         category,
-        revenue: data.revenue / 100,
+        spending: data.spending / 100,
         orders: data.orders.size,
         percentage:
-          totalRevenue > 0
-            ? (data.revenue / totalRevenue) * 100
+          totalSpending > 0
+            ? (data.spending / totalSpending) * 100
             : 0,
       }))
-      .sort((a, b) => b.revenue - a.revenue);
+      .sort((a, b) => b.spending - a.spending);
   }
 
   /**
@@ -461,9 +539,9 @@ export class AnalyticsService {
   }
 
   /**
-   * Get previous period revenue for comparison
+   * Get previous period spending for comparison
    */
-  private async getPreviousPeriodRevenue(
+  private async getPreviousPeriodSpending(
     orgId: string,
     startDate: Date,
     endDate: Date,

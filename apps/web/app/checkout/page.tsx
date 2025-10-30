@@ -11,6 +11,7 @@ import { useCart } from '@/lib/hooks/use-cart';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { BranchSelector } from '@/components/branch-selector';
 import Link from 'next/link';
@@ -154,10 +155,10 @@ export default function CheckoutPage() {
               />
             </div>
             {!selectedBranchId && (
-              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded flex items-center gap-2 text-yellow-800">
-                <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">Please select a branch to continue</span>
-              </div>
+              <Alert className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>Please select a branch to continue</AlertDescription>
+              </Alert>
             )}
           </CardContent>
         </Card>
@@ -198,9 +199,10 @@ export default function CheckoutPage() {
               </CardHeader>
               <CardContent>
                 {error && (
-                  <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded text-red-700">
-                    {error}
-                  </div>
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
 
                 <Button

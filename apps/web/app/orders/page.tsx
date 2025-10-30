@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ArrowRight, Package, Search, Filter } from 'lucide-react';
+import { ArrowRight, Package, Search, Filter, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { BranchSelector } from '@/components/branch-selector';
@@ -190,8 +191,8 @@ export default function OrdersListPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      {/* Header */}
+    <main className="container mx-auto px-4 py-8">
+      {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Orders</h1>
         <p className="text-gray-600">View and manage all orders for your organization</p>
@@ -247,9 +248,10 @@ export default function OrdersListPage() {
 
       {/* Error State */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
-          {error}
-        </div>
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {/* No Organization State */}
@@ -345,6 +347,6 @@ export default function OrdersListPage() {
           </Button>
         </div>
       )}
-    </div>
+    </main>
   );
 }

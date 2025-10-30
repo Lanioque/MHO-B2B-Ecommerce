@@ -4,17 +4,17 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { differenceInDays, parseISO } from 'date-fns';
 
-interface RevenueDataPoint {
+interface SpendingDataPoint {
   date: string;
-  revenue: number;
+  spending: number;
   orders: number;
 }
 
-interface RevenueChartProps {
-  data: RevenueDataPoint[];
+interface SpendingChartProps {
+  data: SpendingDataPoint[];
 }
 
-export function RevenueChart({ data }: RevenueChartProps) {
+export function RevenueChart({ data }: SpendingChartProps) {
   // Determine date range from data
   const getDateRange = () => {
     if (data.length === 0) return 0;
@@ -124,7 +124,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
               />
               <Tooltip
                 formatter={(value: any, name: string) => {
-                  if (name === 'revenue' || name === 'Spent Amount') {
+                  if (name === 'spending' || name === 'Spent Amount') {
                     return formatCurrency(value);
                   }
                   return value;
@@ -143,7 +143,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
               <Line
                 yAxisId="left"
                 type="monotone"
-                dataKey="revenue"
+                dataKey="spending"
                 stroke="#2563eb"
                 strokeWidth={2}
                 name="Spent Amount"
