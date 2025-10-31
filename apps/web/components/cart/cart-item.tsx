@@ -68,34 +68,38 @@ export function CartItem({ item, onUpdateQuantity, onRemove, compact = false }: 
 
   if (compact) {
     return (
-      <div className="flex items-center gap-3 py-3 border-b last:border-b-0">
-        {/* Image - Temporarily disabled to avoid 404 errors */}
-        <div className="w-16 h-16 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
-          <div className="w-full h-full flex items-center justify-center">
-            <Package2 className="w-6 h-6 text-gray-400" />
+      <div className="py-3 border-b last:border-b-0 w-full space-y-2">
+        {/* First Row: Image, Details, Remove */}
+        <div className="flex items-start gap-2">
+          {/* Image - Temporarily disabled to avoid 404 errors */}
+          <div className="w-12 h-12 bg-gray-100 rounded-md overflow-hidden flex-shrink-0">
+            <div className="w-full h-full flex items-center justify-center">
+              <Package2 className="w-4 h-4 text-gray-400" />
+            </div>
+          </div>
+
+          {/* Details */}
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <h4 className="text-sm font-medium truncate">{item.productName}</h4>
+            <p className="text-xs text-gray-500 truncate">SKU: {item.productSku}</p>
+          </div>
+
+          {/* Remove Button */}
+          <div className="flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRemove}
+              disabled={isUpdating}
+              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-3 w-3" />
+            </Button>
           </div>
         </div>
 
-        {/* Details */}
-        <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium truncate">{item.productName}</h4>
-          <p className="text-xs text-gray-500">SKU: {item.productSku}</p>
-          <p className="text-sm font-semibold text-blue-600 mt-1">
-            {formatPrice(item.subtotalCents)}
-          </p>
-        </div>
-
-        {/* Quantity & Remove */}
-        <div className="flex flex-col items-end gap-2 flex-shrink-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleRemove}
-            disabled={isUpdating}
-            className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
+        {/* Second Row: Quantity Controls */}
+        <div className="flex items-center pl-14">
           <QuantityControls
             quantity={item.quantity}
             onIncrease={handleIncrease}
@@ -123,9 +127,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove, compact = false }: 
       <div className="flex-1 min-w-0">
         <h3 className="text-lg font-semibold mb-1">{item.productName}</h3>
         <p className="text-sm text-gray-500 mb-2">SKU: {item.productSku}</p>
-        <p className="text-sm text-gray-600">
-          {formatPrice(item.unitPriceCents)} each
-        </p>
+        <p className="text-sm text-gray-600">Pricing available upon final quotation</p>
         <div className="mt-3">
           <QuantityControls
             quantity={item.quantity}
@@ -149,9 +151,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove, compact = false }: 
           <Trash2 className="h-4 w-4 mr-1" />
           Remove
         </Button>
-        <p className="text-xl font-bold text-blue-600 mt-2">
-          {formatPrice(item.subtotalCents)}
-        </p>
+        <p className="text-sm text-gray-600 mt-2">Subtotal available upon final quotation</p>
       </div>
     </div>
   );

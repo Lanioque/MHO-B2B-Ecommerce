@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useSession } from "next-auth/react"
 import Link from "next/link"
 import {
@@ -13,6 +13,7 @@ import {
   BarChart3,
   Receipt,
   Settings,
+  ChevronDown,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -25,7 +26,20 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
 } from "@/components/ui/sidebar"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 
 // Navigation items - Overview section
 const overviewNav = [
@@ -78,6 +92,32 @@ const managementNav = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: session } = useSession()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [categories, setCategories] = React.useState<string[]>([])
+  const [productsOpen, setProductsOpen] = React.useState(false)
+
+  // Fetch categories
+  React.useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/products/categories')
+        if (response.ok) {
+          const data = await response.json()
+          setCategories(data.categories || [])
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories:', err)
+      }
+    }
+    fetchCategories()
+  }, [])
+
+  // Auto-open products dropdown if on products page
+  React.useEffect(() => {
+    if (pathname === '/products') {
+      setProductsOpen(true)
+    }
+  }, [pathname])
 
   // Get organization data from session
   const membership = session?.user?.memberships?.[0]
@@ -124,7 +164,69 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={overviewNavWithActive} label="Overview" />
-        <NavMain items={managementNavWithActive} label="Management" />
+        <SidebarGroup>
+          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <SidebarMenu>
+            {managementNavWithActive.map((item) => {
+              // Special handling for Products with collapsible categories
+              if (item.url === '/products') {
+                const active = item.isActive ?? (pathname === item.url || (item.url !== '/' && pathname?.startsWith(item.url)))
+                const activeCategory = searchParams?.get('categoryName')
+                const Icon = item.icon
+
+                return (
+                  <Collapsible key={item.title} asChild open={productsOpen} onOpenChange={setProductsOpen}>
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton isActive={active} tooltip={item.title}>
+                          {Icon && <Icon />}
+                          <span>{item.title}</span>
+                          <ChevronDown className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild isActive={active && !activeCategory}>
+                              <Link href="/products">
+                                <span>All Products</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          {categories.map((category) => {
+                            const categoryActive = activeCategory === category
+                            return (
+                              <SidebarMenuSubItem key={category}>
+                                <SidebarMenuSubButton asChild isActive={categoryActive}>
+                                  <Link href={`/products?categoryName=${encodeURIComponent(category)}`}>
+                                    <span>{category}</span>
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            )
+                          })}
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )
+              }
+              // Regular navigation items
+              const Icon = item.icon
+              const active = item.isActive ?? (pathname === item.url || (item.url !== '/' && pathname?.startsWith(item.url)))
+              return (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={active} tooltip={item.title}>
+                    <Link href={item.url}>
+                      {Icon && <Icon />}
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

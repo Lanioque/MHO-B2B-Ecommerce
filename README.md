@@ -24,18 +24,22 @@ A modern, scalable B2B e-commerce platform with real-time Zoho Inventory integra
 - **OAuth 2.0** - Secure authentication with token refresh
 - **Comprehensive Data** - 50+ product fields synced (pricing, stock, images, etc.)
 - **Multi-organization** - Support for multiple Zoho organizations
-- **Service Account** - Background sync service for scheduled updates
+- **Service Account** - Background sync service for scheduled updates (every 15 minutes)
 
 ### 🏢 B2B Features
 - **Shopping Cart** - Branch-specific carts with guest support
 - **Order Management** - Complete order lifecycle from cart to invoice
 - **Invoice System** - Automatic invoice generation with PDF viewing
 - **Quotations** - Create, manage, and convert quotations to orders
+- **Quotation Messaging** - Threaded conversation system for quotation discussions
+- **Quoted Prices** - Automatic price lookup from approved quotations
 - **Multi-branch Support** - Manage multiple business locations
 - **Organization Management** - Company and branch hierarchy
-- **Role-based Access** - Admin, Manager, Customer roles
+- **Employee Management** - Track employees per branch with roles and departments
+- **Role-based Access** - OWNER, ADMIN, STAFF, CUSTOMER roles
 - **Branch Switching** - Easy switching between locations
 - **Recent Activity Dashboard** - Real-time activity feed for orders, invoices, and branches
+- **Payment Integration** - Telr payment gateway integration (partial implementation)
 
 ### 📊 Analytics & Reporting
 - **Comprehensive Analytics Dashboard** - Real-time insights into spending and orders
@@ -92,7 +96,13 @@ MHO/
 │   │   ├── auth.ts           # NextAuth configuration
 │   │   ├── prisma.ts         # Database client
 │   │   ├── redis.ts          # Redis client
-│   │   └── zoho.ts           # Zoho API client
+│   │   ├── clients/           # External API clients
+│   │   │   └── zoho-client.ts # Zoho API client
+│   │   ├── services/         # Business logic services
+│   │   ├── repositories/     # Data access layer
+│   │   ├── domain/           # Domain interfaces
+│   │   │   └── interfaces/   # Repository & service interfaces
+│   │   └── middleware/       # Request middleware
 │   └── prisma/               # Database schema & migrations
 ├── services/zoho-sync/       # Standalone Zoho sync service
 │   ├── src/
@@ -141,6 +151,12 @@ ZOHO_ORGANIZATION_ID=your_org_id
 ZOHO_REGION=eu  # or us, in, au
 ZOHO_SCOPE=ZohoInventory.fullaccess.all,ZohoBooks.contacts.CREATE,ZohoBooks.contacts.READ,ZohoBooks.salesorders.CREATE,ZohoBooks.invoices.CREATE,ZohoBooks.invoices.READ
 ZOHO_BOOKS_ORGANIZATION_ID=your_books_org_id
+
+# Telr Payment Gateway (Optional)
+TELR_MODE=test
+TELR_STORE_ID=your-telr-store-id
+TELR_AUTH_KEY=your-telr-auth-key
+TELR_ENDPOINT=https://secure.telr.com/gateway/remote.xml
 ```
 
 ### 3. Start with Docker
@@ -240,9 +256,10 @@ docker-compose up -d
 - `POST /api/auth/signout` - Sign out
 
 ### Products
-- `GET /api/products` - List products (paginated)
+- `GET /api/products` - List products (paginated, with filters)
 - `GET /api/products/:id` - Get product details
 - `POST /api/products` - Create product (admin)
+- `GET /api/products/quoted-prices` - Get quoted prices from approved quotations
 
 ### Shopping Cart
 - `GET /api/cart` - Get user's cart (with branch filter)
@@ -258,8 +275,10 @@ docker-compose up -d
 - `PATCH /api/orders/:id` - Update order status
 
 ### Invoices
+- `GET /api/invoices` - List invoices (with filters)
 - `GET /api/invoices/:id` - Get invoice details
-- `GET /api/invoices/:id/pdf` - Download invoice PDF
+- `GET /api/invoices/:id/pdf` - Get invoice PDF (stream from Zoho)
+- `GET /api/invoices/:id/download` - Redirect to invoice PDF URL
 
 ### Analytics
 - `GET /api/analytics` - Get organization analytics (with date range and branch filters)
@@ -268,9 +287,14 @@ docker-compose up -d
 ### Quotations
 - `GET /api/quotations` - List quotations (with filters)
 - `POST /api/quotations` - Create quotation
+- `POST /api/quotations/from-cart` - Create quotation from cart
 - `GET /api/quotations/:id` - Get quotation details
-- `PATCH /api/quotations/:id` - Update quotation status or convert to order
+- `PATCH /api/quotations/:id` - Update quotation status
 - `DELETE /api/quotations/:id` - Delete quotation
+- `POST /api/quotations/:id/orders` - Convert quotation to order
+- `GET /api/quotations/:id/messages` - Get quotation messages/thread
+- `POST /api/quotations/:id/messages` - Post message to quotation
+- `GET /api/quotations/:id/pdf` - Get quotation PDF from Zoho
 
 ### Zoho Integration
 - `GET /api/zoho/oauth/start` - Start OAuth flow
@@ -281,7 +305,16 @@ docker-compose up -d
 ### Organizations
 - `GET /api/orgs` - List organizations
 - `POST /api/orgs` - Create organization
+- `GET /api/orgs/:id` - Get organization details
+- `PATCH /api/orgs/:id` - Update organization
 - `GET /api/branches` - List branches
+- `GET /api/branches/:id` - Get branch details
+- `PATCH /api/branches/:id` - Update branch
+
+### User & System
+- `GET /api/me` - Get current user information
+- `GET /api/health` - Health check endpoint
+- `POST /api/debug/report-issue` - Report issues (debug)
 
 ## 🔐 Environment Variables
 
@@ -292,18 +325,20 @@ See `apps/web/env.example` for all required variables.
 Key models:
 - **User** - Authentication & profile
 - **Organization** - Company entities
-- **Branch** - Business locations (with Zoho contact sync)
-- **Membership** - User-org relationships with roles
-- **Product** - Product catalog (global)
-- **Cart** - Shopping carts (branch-specific, guest support)
+- **Branch** - Business locations (with Zoho contact sync, budget tracking, employee count)
+- **Membership** - User-org relationships with roles (OWNER, ADMIN, STAFF, CUSTOMER)
+- **Address** - Billing and shipping addresses (reusable)
+- **Employee** - Employee records per organization and branch
+- **Product** - Product catalog (global, 50+ fields including pricing, inventory, images, dietary info)
+- **Cart** - Shopping carts (branch-specific, guest support via sessionId)
 - **CartItem** - Cart line items
-- **Order** - Customer orders (with status tracking)
+- **Order** - Customer orders (with status tracking: PENDING, AWAITING_PAYMENT, PAID, FAILED, CANCELLED, REFUNDED)
 - **OrderItem** - Order line items
-- **Invoice** - Generated invoices (linked to orders)
+- **Invoice** - Generated invoices (linked to orders, with PDF URLs)
 - **Quotation** - Quotations with status lifecycle (DRAFT, SENT, APPROVED, REJECTED, EXPIRED, CONVERTED)
 - **QuotationItem** - Quotation line items
-- **Customer** - Customer records
-- **ZohoConnection** - OAuth tokens & settings
+- **Customer** - Customer records (with Zoho contact sync)
+- **ZohoConnection** - OAuth tokens & settings (per organization)
 
 ## 📋 All Features Done
 
@@ -317,9 +352,11 @@ Key models:
 - [x] **Organization & Branch Management**
   - Multi-organization support
   - Branch creation and management
-  - Employee management per branch
-  - Address management (billing & shipping)
+  - Employee management per branch (with roles, departments, hire dates)
+  - Address management (billing & shipping, reusable)
   - Branch-specific operations
+  - Branch budget tracking (monthly/yearly)
+  - Branch status management (ACTIVE, INACTIVE, CLOSED)
 
 - [x] **Product Catalog**
   - Product listing with pagination
@@ -341,9 +378,12 @@ Key models:
 - [x] **Order Management**
   - Order creation from cart
   - Order status tracking (PENDING, AWAITING_PAYMENT, PAID, FAILED, CANCELLED, REFUNDED)
+  - Payment integration (Telr gateway - partial)
+  - Payment reference tracking (paymentId, telrTranRef)
   - Order history
   - Order details view
   - Order items tracking
+  - Automatic Zoho Books sales order sync
 
 - [x] **Invoice System**
   - Automatic invoice generation
@@ -352,11 +392,14 @@ Key models:
   - Linked to orders
 
 - [x] **Quotation Management**
-  - Quotation creation
+  - Quotation creation (from cart or manual)
   - Quotation status lifecycle (DRAFT, SENT, APPROVED, REJECTED, EXPIRED, CONVERTED)
   - Convert quotations to orders
+  - Quotation messaging/chat thread
+  - Quotation PDF generation from Zoho
   - Quotation history
   - Expiry date management
+  - Quoted prices lookup from approved quotations
 
 - [x] **Analytics & Reporting**
   - Comprehensive analytics dashboard
@@ -383,7 +426,7 @@ Key models:
   - 50+ product fields synced
   - Stock level updates
   - Product image sync
-  - Scheduled sync service
+  - Scheduled sync service (every 15 minutes via cron)
   - Manual sync trigger
 
 - [x] **Zoho Books Integration**
@@ -433,6 +476,10 @@ Key models:
   - Request validation (Zod)
   - Error handling middleware
   - Type-safe API responses
+  - Repository pattern implementation
+  - Unit of Work pattern for transactions
+  - Service layer architecture
+  - Domain-driven design interfaces
 
 - [x] **DevOps & Deployment**
   - Docker containerization
@@ -498,13 +545,15 @@ Key models:
 ### Week 2: Payment Processing Foundation
 **Goal: Enable online payments**
 
-- [ ] **Payment Gateway Integration** (Priority: Critical)
-  - Integration with payment gateway (Stripe/PayPal/Telr)
-  - Payment method selection
-  - Payment status tracking
-  - Payment confirmation handling
+- [x] **Payment Gateway Integration** (Partial)
+  - Telr payment gateway integration (infrastructure ready)
+  - Payment reference tracking (paymentId, telrTranRef)
+  - Order status includes AWAITING_PAYMENT
 
-- [ ] **Payment Management**
+- [ ] **Payment Management** (Priority: Critical)
+  - Complete Telr payment flow implementation
+  - Payment method selection
+  - Payment confirmation handling
   - Payment history view
   - Payment receipt generation
   - Payment failure handling
@@ -547,11 +596,12 @@ Key models:
   - Interactive API explorer
   - Code samples and examples
 
-- [ ] **Webhook System**
+- [ ] **Webhook System** (Priority: Medium)
   - Webhook configuration UI
-  - Event subscriptions (order created, invoice paid, etc.)
+  - Incoming webhooks from external services
+  - Outgoing webhooks (order created, invoice paid, etc.)
   - Webhook delivery and retry mechanism
-  - Webhook logs and monitoring
+  - Webhook logs and monitoring dashboard
 
 ### Week 6: Polish & Testing
 **Goal: Production readiness**
@@ -633,6 +683,7 @@ graph TB
         ORDER_REPO[Order Repository]
         QUOTE_REPO[Quotation Repository]
         INV_REPO[Invoice Repository]
+        UOW[Unit of Work<br/>Transaction Management]
     end
 
     subgraph "Data Layer"
@@ -644,7 +695,7 @@ graph TB
         ZOHO_INV[Zoho Inventory<br/>Product Sync]
         ZOHO_BOOKS[Zoho Books<br/>Orders & Invoices]
         EMAIL[Email Service<br/>Future]
-        PAYMENT[Payment Gateway<br/>Future]
+        PAYMENT[Telr Payment Gateway<br/>Partial]
     end
 
     subgraph "Background Services"
@@ -701,7 +752,12 @@ graph TB
 
     ORDER_SVC -.-> EMAIL
     INV_SVC -.-> EMAIL
-    ORDER_SVC -.-> PAYMENT
+    ORDER_SVC --> PAYMENT
+
+    USER_REPO --> UOW
+    ORG_REPO --> UOW
+    CART_REPO --> UOW
+    ORDER_REPO --> UOW
 
     style WEB fill:#4A90E2
     style MOB fill:#4A90E2,stroke-dasharray: 5 5
@@ -712,7 +768,8 @@ graph TB
     style ZOHO_INV fill:#FF6600
     style ZOHO_BOOKS fill:#FF6600
     style EMAIL fill:#999,stroke-dasharray: 5 5
-    style PAYMENT fill:#999,stroke-dasharray: 5 5
+    style PAYMENT fill:#4CAF50
+    style UOW fill:#9C27B0
 ```
 
 ## 🔄 User Journey Flow

@@ -74,7 +74,7 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
 
   return (
     <Sheet open={isDrawerOpen} onOpenChange={(open) => !open && closeDrawer()}>
-      <SheetContent side="right" className="w-full max-w-[100vw] sm:max-w-lg md:max-w-xl flex flex-col p-0 overflow-x-hidden">
+      <SheetContent side="right" className="w-full max-w-[90vw] sm:max-w-md flex flex-col p-0 overflow-hidden">
         {/* Header */}
         <SheetHeader className="p-4 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
           <div className="flex items-center justify-between">
@@ -91,43 +91,45 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
         </SheetHeader>
 
         {/* Cart Items */}
-        <ScrollArea className="flex-1 p-4 pr-6">
-          {!cart || cart.items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <ShoppingBag className="w-10 h-10 text-gray-400" />
+        <ScrollArea className="flex-1">
+          <div className="px-5 py-4">
+            {!cart || cart.items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                  <ShoppingBag className="w-10 h-10 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Your cart is empty
+                </h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Add products to get started
+                </p>
+                <Button
+                  onClick={closeDrawer}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600"
+                >
+                  Continue Shopping
+                </Button>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Your cart is empty
-              </h3>
-              <p className="text-sm text-gray-600 mb-6">
-                Add products to get started
-              </p>
-              <Button
-                onClick={closeDrawer}
-                className="bg-gradient-to-r from-blue-600 to-indigo-600"
-              >
-                Continue Shopping
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {cart.items.map((item) => (
-                <CartItem
-                  key={item.id}
-                  item={item}
-                  onUpdateQuantity={updateQuantity}
-                  onRemove={removeItem}
-                  compact
-                />
-              ))}
-            </div>
-          )}
+            ) : (
+              <div className="space-y-4">
+                {cart.items.map((item) => (
+                  <CartItem
+                    key={item.id}
+                    item={item}
+                    onUpdateQuantity={updateQuantity}
+                    onRemove={removeItem}
+                    compact
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </ScrollArea>
 
         {/* Footer */}
         {cart && cart.items.length > 0 && (
-          <div className="border-t bg-gray-50 p-4 space-y-4">
+          <div className="border-t bg-gray-50 px-5 py-4 space-y-4">
             {/* Subtotal hidden in quote flow */}
             <div className="flex items-center justify-between text-lg font-semibold">
               <span>Total:</span>

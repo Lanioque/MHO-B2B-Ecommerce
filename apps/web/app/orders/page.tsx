@@ -165,14 +165,14 @@ export default function OrdersListPage() {
     setPagination((prev) => ({ ...prev, page: 1 })); // Reset to first page
   }, []);
 
-  const filteredOrders = orders.filter((order) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      order.number.toLowerCase().includes(query) ||
-      order.id.toLowerCase().includes(query)
+  const filteredOrders = useMemo(() => {
+    if (!searchQuery) return orders;
+    const q = searchQuery.toLowerCase();
+    return orders.filter((o) =>
+      o.number.toLowerCase().includes(q) ||
+      o.id.toLowerCase().includes(q)
     );
-  });
+  }, [orders, searchQuery]);
 
   if (loading && orders.length === 0) {
     return (

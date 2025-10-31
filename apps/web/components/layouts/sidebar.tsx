@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { LayoutDashboard, Package, FileText, ShoppingCart, Building2, BarChart3, Receipt, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { LayoutDashboard, Package, FileText, ShoppingCart, Building2, BarChart3, Receipt, Settings, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MoreVertical } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 const mainNav = [
@@ -25,8 +27,11 @@ const manageNav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [productsOpen, setProductsOpen] = useState(false);
 
   // Initialize from localStorage and set CSS var for content padding
   useEffect(() => {
@@ -37,6 +42,29 @@ export function Sidebar() {
       document.documentElement.style.setProperty('--sidebar-width', initiallyCollapsed ? '3.5rem' : '14rem');
     }
   }, []);
+
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/products/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      }
+    };
+    fetchCategories();
+  }, []);
+
+  // Auto-open products dropdown if on products page
+  useEffect(() => {
+    if (pathname === '/products') {
+      setProductsOpen(true);
+    }
+  }, [pathname]);
 
   const toggleCollapsed = () => {
     const next = !collapsed;
@@ -98,11 +126,30 @@ export function Sidebar() {
               <div>
                 {!collapsed && <div className="px-2 pb-2 text-[11px] uppercase tracking-wide text-gray-500">Management</div>}
                 <ul className={cn('space-y-1', collapsed ? 'px-1' : '')}>
-                  {manageNav.map((item) => (
-                    <li key={item.href} className={collapsed ? 'flex justify-center' : ''}>
-                      <SidebarLink href={item.href} label={item.label} icon={item.icon} activePath={pathname} collapsed={collapsed} />
-                    </li>
-                  ))}
+                  {manageNav.map((item) => {
+                    // Special handling for Products with categories dropdown
+                    if (item.href === '/products') {
+                      return (
+                        <li key={item.href} className={collapsed ? 'flex justify-center' : ''}>
+                          <ProductsDropdown
+                            label={item.label}
+                            icon={item.icon}
+                            activePath={pathname}
+                            collapsed={collapsed}
+                            categories={categories}
+                            open={productsOpen}
+                            onOpenChange={setProductsOpen}
+                          />
+                        </li>
+                      );
+                    }
+                    // Regular navigation items
+                    return (
+                      <li key={item.href} className={collapsed ? 'flex justify-center' : ''}>
+                        <SidebarLink href={item.href} label={item.label} icon={item.icon} activePath={pathname} collapsed={collapsed} />
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             </nav>
@@ -149,6 +196,122 @@ function SidebarLink({ href, label, icon: Icon, activePath, collapsed }: { href:
         </Tooltip>
       </TooltipProvider>
     </Link>
+  );
+}
+
+function ProductsDropdown({ 
+  label, 
+  icon: Icon, 
+  activePath, 
+  collapsed, 
+  categories,
+  open,
+  onOpenChange 
+}: { 
+  label: string; 
+  icon: any; 
+  activePath?: string | null; 
+  collapsed?: boolean;
+  categories: string[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const searchParams = useSearchParams();
+  const activeCategory = searchParams?.get('categoryName');
+  const active = activePath === '/products' || (activePath || '').startsWith('/products');
+
+  if (collapsed) {
+    return (
+      <Link href="/products" className="block">
+        <TooltipProvider>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  'group flex items-center justify-center px-3 py-2 rounded-lg text-sm transition-all',
+                  active ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 ring-1 ring-blue-100' : 'hover:bg-gray-50 text-gray-700'
+                )}
+              >
+                <div className={cn('h-8 w-8 grid place-items-center rounded-md border', active ? 'bg-white text-blue-700 border-blue-100' : 'bg-white text-gray-600 border-gray-200')}>
+                  <Icon className={cn('h-4 w-4')} />
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="hidden md:block">
+              {label}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </Link>
+    );
+  }
+
+  return (
+    <div className="relative group">
+      <div
+        className={cn(
+          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all hover:translate-x-[1px] w-full',
+          active ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 ring-1 ring-blue-100' : 'hover:bg-gray-50 text-gray-700'
+        )}
+      >
+        <Link href="/products" className="flex items-center gap-3 flex-1 min-w-0">
+          <div className={cn('h-8 w-8 grid place-items-center rounded-md border flex-shrink-0', active ? 'bg-white text-blue-700 border-blue-100' : 'bg-white text-gray-600 border-gray-200')}>
+            <Icon className={cn('h-4 w-4')} />
+          </div>
+          <span className="font-medium">{label}</span>
+        </Link>
+        {categories.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1 hover:bg-gray-200 rounded transition-colors flex-shrink-0"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                aria-label="Show categories"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56 max-h-96 overflow-y-auto">
+              <DropdownMenuItem asChild>
+                <Link
+                  href="/products"
+                  className={cn(
+                    'w-full',
+                    active && !activeCategory ? 'bg-blue-50 text-blue-700 font-medium' : ''
+                  )}
+                >
+                  All Products
+                </Link>
+              </DropdownMenuItem>
+              {categories.length > 0 && (
+                <>
+                  <div className="h-px bg-gray-200 my-1" />
+                  {categories.map((category) => {
+                    const categoryActive = activeCategory === category;
+                    return (
+                      <DropdownMenuItem key={category} asChild>
+                        <Link
+                          href={`/products?categoryName=${encodeURIComponent(category)}`}
+                          className={cn(
+                            'w-full',
+                            categoryActive ? 'bg-blue-50 text-blue-700 font-medium' : ''
+                          )}
+                        >
+                          {category}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,6 +66,24 @@ export default function ProductsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high' | 'name-asc' | 'name-desc'>('newest');
   const [quotedPrices, setQuotedPrices] = useState<Record<string, number>>({});
+  const isFetchingRef = useRef(false);
+  const isInitialLoadRef = useRef(true);
+
+  // Fetch all categories on mount
+  useEffect(() => {
+    const fetchAllCategories = async () => {
+      try {
+        const response = await fetch('/api/products/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data.categories || []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch categories:', err);
+      }
+    };
+    fetchAllCategories();
+  }, []);
 
   // Fetch organization ID and branch ID from selected branch or user context
   useEffect(() => {
@@ -128,17 +146,25 @@ export default function ProductsPage() {
     fetchOrgId();
   }, []);
 
-  const fetchProducts = async (pageNum: number, search?: string, category?: string | null, sort?: string) => {
+  const fetchProducts = async (pageNum: number, search: string | null, category: string | null, sort: string | null) => {
+    // Prevent duplicate fetches
+    if (isFetchingRef.current) {
+      console.log('Skipping duplicate fetch request');
+      return;
+    }
+    
     try {
+      isFetchingRef.current = true;
       setLoading(true);
+      // Use server-side pagination and search
       let url = `/api/products?page=${pageNum}&pageSize=${pageSize}&isVisible=true`;
-      if (search) {
+      if (search && search.trim() !== "") {
         url += `&search=${encodeURIComponent(search)}`;
       }
-      if (category) {
+      if (category && category.trim() !== "") {
         url += `&categoryName=${encodeURIComponent(category)}`;
       }
-      if (sort) {
+      if (sort && sort.trim() !== "") {
         url += `&sortBy=${encodeURIComponent(sort)}`;
       }
       
@@ -152,47 +178,40 @@ export default function ProductsPage() {
       setData(result);
       setError(null);
       
-      // Extract unique categories from products
-      if (result.products) {
-        const uniqueCategories = Array.from(
-          new Set(
-            result.products
-              .map((p: Product) => p.categoryName)
-              .filter((cat: string | null | undefined) => cat && cat.trim() !== "")
-          )
-        ).sort() as string[];
-        setCategories((prev) => {
-          // Merge with existing categories
-          const merged = new Set([...prev, ...uniqueCategories]);
-          return Array.from(merged).sort();
-        });
-      }
+      // No need to extract categories here - we fetch them separately via /api/products/categories
+      // This prevents unnecessary re-renders and state updates
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch products");
       console.error("Error fetching products:", err);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
-  // Debounced search - wait for user to stop typing
+  // Fetch products when search/filter/sort/page changes
   useEffect(() => {
     if (!orgId) return;
 
-    const timer = setTimeout(() => {
-      setPage(1); // Reset to first page when searching or filtering
-      fetchProducts(1, searchQuery || undefined, selectedCategory, sortBy);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchQuery, selectedCategory, sortBy, orgId]);
-
-  // Fetch products when page or sort changes
-  useEffect(() => {
-    if (orgId) {
-      fetchProducts(page, searchQuery || undefined, selectedCategory, sortBy);
+    // On initial load, mark that initial load is complete after first fetch
+    const isInitial = isInitialLoadRef.current;
+    
+    // Reset to page 1 when search/category/sort changes (not when just page changes)
+    const hasSearchOrFilter = searchQuery && searchQuery.trim() !== "";
+    if (hasSearchOrFilter || selectedCategory || sortBy !== 'newest') {
+      if (page !== 1) {
+        setPage(1);
+        return; // Return early, let the effect run again with page=1
+      }
     }
-  }, [page, sortBy]);
+
+    fetchProducts(page, searchQuery || null, selectedCategory, sortBy);
+    
+    // Mark initial load as complete after first successful fetch
+    if (isInitial) {
+      isInitialLoadRef.current = false;
+    }
+  }, [orgId, page, searchQuery, selectedCategory, sortBy]);
 
   // Fetch quoted prices when org or branch changes
   useEffect(() => {
@@ -221,27 +240,24 @@ export default function ProductsPage() {
     }).format(cents / 100);
   };
 
-  const getStockBadge = (stock: number) => {
-    if (stock === 0) {
-      return (
-        <Badge variant="destructive" className="bg-red-500 text-white px-2 py-0.5 text-xs font-medium rounded-full">
-          Out of Stock
-        </Badge>
-      );
+  
+
+  // Server-provided products and pagination
+  const { filteredProducts, pagination: clientPagination, allCategories } = useMemo(() => {
+    if (!data?.products) {
+      return {
+        filteredProducts: [] as Product[],
+        pagination: { page: 1, pageSize: pageSize, total: 0, totalPages: 1 },
+        allCategories: categories,
+      };
     }
-    if (stock < 10) {
-      return (
-        <Badge className="bg-orange-500 text-white px-2 py-0.5 text-xs font-medium rounded-full">
-          Low Stock
-        </Badge>
-      );
-    }
-    return (
-      <Badge className="bg-green-500 text-white px-2 py-0.5 text-xs font-medium rounded-full">
-        In Stock
-      </Badge>
-    );
-  };
+    const visibleProducts = data.products.filter((p: Product) => p.isVisible === true);
+    return {
+      filteredProducts: visibleProducts,
+      pagination: data.pagination,
+      allCategories: categories,
+    };
+  }, [data?.products, data?.pagination, categories]);
 
   const handleAddToCart = async (productId: string, quantity: number = 1) => {
     if (!orgId) {
@@ -343,7 +359,7 @@ export default function ProductsPage() {
         </div>
       </div>
         {/* Category Filter */}
-        {categories.length > 0 && (
+        {(categories.length > 0 || allCategories.length > 0) && (
           <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
             <div className="flex items-center gap-2 mb-3">
               <Filter className="w-4 h-4 text-gray-500" />
@@ -360,7 +376,7 @@ export default function ProductsPage() {
               >
                 All Categories
               </button>
-              {categories.map((category) => (
+              {(searchQuery ? allCategories : categories).map((category) => (
                 <button
                   key={category}
                   onClick={() => setSelectedCategory(category)}
@@ -418,13 +434,14 @@ export default function ProductsPage() {
                 </Select>
               </div>
               <div className="text-sm text-gray-600">
-                Page {page} of {data?.pagination.totalPages || 1}
+                Page {clientPagination.page} of {clientPagination.totalPages}
+                {searchQuery && ` (${clientPagination.total} found)`}
               </div>
             </div>
           </div>
         </div>
 
-        {loading ? (
+        {loading && isInitialLoadRef.current ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
               <Card key={i} className="overflow-hidden">
@@ -451,7 +468,7 @@ export default function ProductsPage() {
                 <p className="font-semibold text-red-600 mb-2">Error Loading Products</p>
                 <p className="text-gray-600 mb-4">{error}</p>
                 <Button
-                  onClick={() => fetchProducts(page)}
+                  onClick={() => fetchProducts(page, searchQuery || null, selectedCategory, sortBy)}
                   variant="default"
                   className="bg-gradient-to-r from-blue-600 to-indigo-600"
                 >
@@ -460,12 +477,12 @@ export default function ProductsPage() {
               </div>
             </CardContent>
           </Card>
-        ) : data && data.products.length > 0 ? (
+        ) : filteredProducts.length > 0 ? (
           <>
             {/* Products Grid */}
             {viewMode === 'grid' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-                {data.products.map((product: Product) => (
+                {filteredProducts.map((product: Product) => (
                   <Card
                     key={product.id}
                     className="group hover:shadow-xl transition-all duration-300 border-gray-200 overflow-hidden bg-white flex flex-col h-full"
@@ -509,24 +526,12 @@ export default function ProductsPage() {
                     </CardHeader>
 
                     <CardContent className="px-4 pb-4 space-y-3 flex-grow flex flex-col justify-end">
-                      {/* Price: show quoted if available, else hide actual price */}
+                      {/* Price hidden until final quotation */}
                       <div className="bg-blue-50 rounded-lg p-3 flex-shrink-0">
-                        {quotedPrices[product.id] !== undefined ? (
-                          <p className="text-xl font-bold text-blue-700">
-                            {formatPrice(quotedPrices[product.id], product.currency)}
-                          </p>
-                        ) : (
-                          <p className="text-sm font-medium text-blue-700">Price on request</p>
-                        )}
+                        <p className="text-sm font-medium text-blue-700">Price available upon final quotation</p>
                       </div>
 
-                      {/* Stock Status */}
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {getStockBadge(product.stock)}
-                        <span className="text-sm text-gray-700">
-                          Stock {product.stock}
-                        </span>
-                      </div>
+                      
 
                       {/* Add to Cart Button */}
                       <Button
@@ -535,7 +540,7 @@ export default function ProductsPage() {
                           e.stopPropagation();
                           handleAddToCart(product.id);
                         }}
-                        disabled={addingToCart === product.id || product.stock === 0}
+                        disabled={addingToCart === product.id}
                       >
                         {addingToCart === product.id ? (
                           <>Adding...</>
@@ -557,7 +562,7 @@ export default function ProductsPage() {
               </div>
             ) : (
               <div className="space-y-4 mb-8">
-                {data.products.map((product: Product) => (
+                {filteredProducts.map((product: Product) => (
                   <Card
                     key={product.id}
                     className="group hover:shadow-lg transition-all duration-300 cursor-pointer"
@@ -582,13 +587,7 @@ export default function ProductsPage() {
                               <p className="text-sm text-gray-500 font-mono">SKU: {product.sku}</p>
                             </div>
                             <div className="text-right">
-                              {quotedPrices[product.id] !== undefined ? (
-                                <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                                  {formatPrice(quotedPrices[product.id], product.currency)}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-gray-600">Price on request</p>
-                              )}
+                              <p className="text-sm text-gray-600">Price available upon final quotation</p>
                             </div>
                           </div>
 
@@ -599,12 +598,8 @@ export default function ProductsPage() {
                           )}
 
                           <div className="flex items-center gap-3">
-                            {getStockBadge(product.stock)}
                             {product.brand && <Badge variant="secondary">{product.brand}</Badge>}
                             {product.categoryName && <Badge variant="outline">{product.categoryName}</Badge>}
-                            <span className="text-sm text-gray-500 ml-auto">
-                              Stock: <span className="font-semibold">{product.stock}</span>
-                            </span>
                           </div>
                         </div>
                       </div>
@@ -615,7 +610,7 @@ export default function ProductsPage() {
             )}
 
             {/* Pagination */}
-            {data.pagination.totalPages > 1 && (
+            {clientPagination.totalPages > 1 && (
               <div className="flex items-center justify-center gap-2 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
                 <Button
                   variant="outline"
@@ -626,14 +621,14 @@ export default function ProductsPage() {
                 </Button>
 
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(data.pagination.totalPages, 7) }, (_, i) => {
+                  {Array.from({ length: Math.min(clientPagination.totalPages, 7) }, (_, i) => {
                     let pageNum: number;
-                    if (data.pagination.totalPages <= 7) {
+                    if (clientPagination.totalPages <= 7) {
                       pageNum = i + 1;
                     } else if (page <= 4) {
                       pageNum = i + 1;
-                    } else if (page >= data.pagination.totalPages - 3) {
-                      pageNum = data.pagination.totalPages - 6 + i;
+                    } else if (page >= clientPagination.totalPages - 3) {
+                      pageNum = clientPagination.totalPages - 6 + i;
                     } else {
                       pageNum = page - 3 + i;
                     }
@@ -653,8 +648,8 @@ export default function ProductsPage() {
 
                 <Button
                   variant="outline"
-                  onClick={() => setPage((p) => Math.min(data.pagination.totalPages, p + 1))}
-                  disabled={page === data.pagination.totalPages}
+                  onClick={() => setPage((p) => Math.min(clientPagination.totalPages, p + 1))}
+                  disabled={page === clientPagination.totalPages}
                 >
                   Next
                 </Button>
@@ -709,23 +704,11 @@ export default function ProductsPage() {
                   </div>
                 </div>
 
-                {/* Price & Stock */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Price only */}
+                <div className="grid grid-cols-1 gap-4">
                   <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
                     <p className="text-sm text-gray-600 mb-1">Price</p>
-                    {quotedPrices[selectedProduct.id] !== undefined ? (
-                      <p className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                        {formatPrice(quotedPrices[selectedProduct.id], selectedProduct.currency)}
-                      </p>
-                    ) : (
-                      <p className="text-sm text-blue-700">Price on request</p>
-                    )}
-                  </div>
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border border-green-100">
-                    <p className="text-sm text-gray-600 mb-1">Stock Level</p>
-                    <p className="text-3xl font-bold text-green-600">
-                      {selectedProduct.stock}
-                    </p>
+                    <p className="text-sm text-blue-700">Available upon final quotation</p>
                   </div>
                 </div>
 
@@ -751,10 +734,7 @@ export default function ProductsPage() {
                       <p className="font-semibold">{selectedProduct.categoryName}</p>
                     </div>
                   )}
-                  <div>
-                    <p className="text-gray-500">Status</p>
-                    <Badge className="mt-1">{getStockBadge(selectedProduct.stock)}</Badge>
-                  </div>
+                  
                   {selectedProduct.zohoItemId && (
                     <div>
                       <p className="text-gray-500">Source</p>
@@ -782,9 +762,7 @@ export default function ProductsPage() {
                       min={1}
                       max={selectedProduct.stock || undefined}
                     />
-                    <span className="text-sm text-gray-500">
-                      (Max: {selectedProduct.stock})
-                    </span>
+                    
                   </div>
                 </div>
 
@@ -793,7 +771,7 @@ export default function ProductsPage() {
                   <Button 
                     className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600"
                     onClick={handleAddToCartFromModal}
-                    disabled={addingToCart === selectedProduct.id || selectedProduct.stock === 0}
+                    disabled={addingToCart === selectedProduct.id}
                   >
                     {addingToCart === selectedProduct.id ? (
                       <>Adding...</>

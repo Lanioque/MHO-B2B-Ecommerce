@@ -208,15 +208,15 @@ export default function InvoicesListPage() {
     }
   };
 
-  const filteredInvoices = invoices.filter((invoice) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      invoice.number.toLowerCase().includes(query) ||
-      invoice.id.toLowerCase().includes(query) ||
-      invoice.order.number.toLowerCase().includes(query)
+  const filteredInvoices = useMemo(() => {
+    if (!searchQuery) return invoices;
+    const q = searchQuery.toLowerCase();
+    return invoices.filter((inv) =>
+      inv.number.toLowerCase().includes(q) ||
+      inv.id.toLowerCase().includes(q) ||
+      inv.order.number.toLowerCase().includes(q)
     );
-  });
+  }, [invoices, searchQuery]);
 
   if (loading && invoices.length === 0) {
     return (

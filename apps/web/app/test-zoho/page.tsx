@@ -307,9 +307,7 @@ export default function TestZohoPage() {
                               <div>
                                 <span className="font-medium">Price:</span> ${product.rate?.toFixed(2) || "0.00"}
                               </div>
-                              <div>
-                                <span className="font-medium">Stock:</span> {product.stock_on_hand || 0}
-                              </div>
+                              
                               {product.description && (
                                 <div>
                                   <span className="font-medium">Description:</span>{" "}
