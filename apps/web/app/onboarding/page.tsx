@@ -5,7 +5,7 @@ import OnboardingForm from "./OnboardingForm";
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: { email?: string };
+  searchParams: Promise<{ email?: string }>;
 }) {
   // Check if user is already authenticated
   const session = await auth();
@@ -14,6 +14,7 @@ export default async function OnboardingPage({
     // User is already logged in, redirect to dashboard
     redirect("/dashboard");
   }
+  const { email } = await searchParams;
 
-  return <OnboardingForm email={searchParams.email} />;
+  return <OnboardingForm email={email} />;
 }

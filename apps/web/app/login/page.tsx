@@ -5,7 +5,7 @@ import LoginForm from "./LoginForm";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { callbackUrl?: string };
+  searchParams: Promise<{ callbackUrl?: string }>;
 }) {
   // Check if user is already authenticated
   const session = await auth();
@@ -15,8 +15,8 @@ export default async function LoginPage({
     redirect("/dashboard");
   }
 
-  const callbackUrl = searchParams.callbackUrl || "/dashboard";
+  const { callbackUrl } = await searchParams;
 
-  return <LoginForm callbackUrl={callbackUrl} />;
+  return <LoginForm callbackUrl={callbackUrl || "/dashboard"} />;
 }
 

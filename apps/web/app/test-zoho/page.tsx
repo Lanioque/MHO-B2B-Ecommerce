@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
@@ -145,7 +146,7 @@ export default function TestZohoPage() {
           count: result.totalFetched,
           products: [],
         });
-        alert(`Sync completed: ${result.synced} products synced, ${result.errors} errors`);
+        toast.success(`Sync completed: ${result.synced} products synced, ${result.errors} errors`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sync products");
@@ -155,21 +156,12 @@ export default function TestZohoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link href="/dashboard">
-              <Button variant="ghost">← Back to Dashboard</Button>
-            </Link>
-            <h1 className="text-xl font-bold text-gray-900">Test Zoho Products API</h1>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-6xl">
+    <main className="container mx-auto px-4 py-8 max-w-6xl">
+      {/* Page Header */}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-gray-900">Test Zoho Products API</h1>
+        <p className="text-sm text-gray-500 mt-1">Test the Zoho products integration</p>
+      </div>
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Test API Endpoint</CardTitle>
@@ -199,20 +191,6 @@ export default function TestZohoPage() {
                   <p className="text-sm">
                     Using organization: <span className="font-mono font-semibold">{orgId}</span>
                   </p>
-                  {userInfo.memberships.length > 1 && (
-                    <select
-                      value={orgId}
-                      onChange={(e) => setOrgId(e.target.value)}
-                      className="mt-2 w-full px-3 py-2 border border-blue-300 rounded-md shadow-sm"
-                      disabled={loading}
-                    >
-                      {userInfo.memberships.map((membership) => (
-                        <option key={membership.id} value={membership.orgId}>
-                          {membership.orgId} ({membership.role})
-                        </option>
-                      ))}
-                    </select>
-                  )}
                 </div>
 
                 <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-md">
@@ -383,8 +361,7 @@ export default function TestZohoPage() {
             </div>
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </main>
   );
 }
 

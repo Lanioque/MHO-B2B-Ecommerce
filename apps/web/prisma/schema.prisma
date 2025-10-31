@@ -43,7 +43,7 @@ model Organization {
 
 model Membership {
   id        String       @id @default(uuid())
-  userId    String
+  userId    String       @unique
   orgId     String
   role      Role         @default(CUSTOMER)
   createdAt DateTime     @default(now())
@@ -51,31 +51,61 @@ model Membership {
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, orgId])
   @@index([userId])
   @@index([orgId])
 }
 
 model Branch {
-  id            String       @id @default(uuid())
+  id            String    @id @default(uuid())
   orgId         String
   name          String
   billingId     String
   shippingId    String
-  zohoContactId String?      @unique
+  zohoContactId String?   @unique
   zohoSyncedAt  DateTime?
   zohoSyncError String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  billing       Address      @relation("BillingAddress", fields: [billingId], references: [id], onDelete: Cascade)
-  shipping      Address      @relation("ShippingAddress", fields: [shippingId], references: [id], onDelete: Cascade)
-  employees     Employee[]
-  carts         Cart[]
-  quotations    Quotation[]
+
+  // Status and Description
+  status      String  @default("ACTIVE") // ACTIVE, INACTIVE, CLOSED
+  description String?
+  notes       String?
+
+  // Budget Information
+  monthlyBudget  Int? // Budget in cents
+  yearlyBudget   Int? // Budget in cents
+  budgetCurrency String @default("USD")
+
+  // Contact Information
+  phone   String?
+  email   String?
+  website String?
+
+  // Manager Information
+  managerName  String?
+  managerEmail String?
+  managerPhone String?
+
+  // Operating Information
+  operatingHours String? // e.g., "Mon-Fri: 9AM-5PM"
+  capacity       Int? // Max capacity (seating, employees, etc.)
+  employeeCount  Int? // Cached employee count
+
+  // Financial Information
+  costCenterCode String?
+  taxId          String?
+
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  billing    Address      @relation("BillingAddress", fields: [billingId], references: [id], onDelete: Cascade)
+  shipping   Address      @relation("ShippingAddress", fields: [shippingId], references: [id], onDelete: Cascade)
+  employees  Employee[]
+  carts      Cart[]
+  quotations Quotation[]
 
   @@index([orgId])
   @@index([createdAt])
+  @@index([status])
 }
 
 model Address {
@@ -434,6 +464,10 @@ model Quotation {
   status     QuotationStatus @default(DRAFT)
   validUntil DateTime?
   notes      String?
+  // Zoho Books integration
+  zohoEstimateId String?      @unique
+  // Optional message from customer when declining
+  customerMessage String?
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   org        Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)

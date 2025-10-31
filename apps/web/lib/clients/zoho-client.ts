@@ -361,11 +361,42 @@ export class ZohoClient implements IZohoClient {
   }
 
   /**
+   * Update a contact (customer) in Zoho Books
+   */
+  async updateContact(orgId: string, contactId: string, contactData: Partial<ZohoContact>): Promise<ZohoContact> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/contacts/${contactId}?organization_id=${booksOrgId}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(contactData as any),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ZohoError(`Failed to update contact: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.contact;
+  }
+
+  /**
    * Get contact by email
    */
   async getContactByEmail(orgId: string, email: string): Promise<ZohoContact | null> {
     const accessToken = await this.getValidAccessToken(orgId);
-    const regionStrategy = RegionStrategyFactory.getStrategy(config.zoho.region);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
     const booksOrgId = await this.getBooksOrganizationId(orgId);
 
     const response = await fetch(
@@ -455,6 +486,153 @@ export class ZohoClient implements IZohoClient {
     const data = await response.json();
     console.log(`[Zoho] Invoice created successfully:`, data.invoice?.invoice_id);
     return data.invoice;
+  }
+
+  /**
+   * Create an estimate in Zoho Books
+   */
+  async createEstimate(orgId: string, estimateData: any): Promise<any> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/estimates?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(estimateData),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ZohoError(`Failed to create estimate: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.estimate;
+  }
+
+  /**
+   * Get estimate details (to retrieve PDF/URL)
+   */
+  async getEstimate(orgId: string, estimateId: string): Promise<any> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/estimates/${estimateId}?organization_id=${booksOrgId}`,
+      {
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ZohoError(`Failed to get estimate: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.estimate;
+  }
+
+  /**
+   * Send estimate (mark as sent)
+   */
+  async sendEstimate(orgId: string, estimateId: string): Promise<any> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/estimates/${estimateId}/status/sent?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ZohoError(`Failed to send estimate: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.estimate;
+  }
+
+  /**
+   * Convert estimate to invoice in Zoho Books
+   */
+  async convertEstimateToInvoice(orgId: string, estimateId: string): Promise<ZohoInvoice> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/estimates/${estimateId}/invoices?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ZohoError(`Failed to convert estimate to invoice: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.invoice;
+  }
+
+  /**
+   * Convert estimate to sales order in Zoho Books
+   */
+  async convertEstimateToSalesOrder(orgId: string, estimateId: string): Promise<ZohoSalesOrder> {
+    const accessToken = await this.getValidAccessToken(orgId);
+    const region = await this.getRegionFromConnection(orgId);
+    const regionStrategy = RegionStrategyFactory.getStrategy(region);
+    const booksOrgId = await this.getBooksOrganizationId(orgId);
+
+    const response = await fetch(
+      `${regionStrategy.getBooksApiUrl()}/estimates/${estimateId}/salesorders?organization_id=${booksOrgId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Zoho-oauthtoken ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new ZohoError(`Failed to convert estimate to sales order: ${errorText}`, response.status);
+    }
+
+    const data = await response.json();
+    return data.salesorder;
   }
 
   /**

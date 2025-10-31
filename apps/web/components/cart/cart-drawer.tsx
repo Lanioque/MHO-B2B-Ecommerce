@@ -5,11 +5,18 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { CartItem } from './cart-item';
 import { useCart } from '@/lib/hooks/use-cart';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart, X, ShoppingBag } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ShoppingCart, ShoppingBag } from 'lucide-react';
 import Link from 'next/link';
 
 interface CartDrawerProps {
@@ -27,12 +34,15 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
     fetchCart,
   } = useCart();
 
-  // Fetch cart when drawer opens
+  const [requestingQuote, setRequestingQuote] = useState(false);
+  const [quoteId, setQuoteId] = useState<string | null>(null);
+
+  // Fetch cart when drawer opens (always refresh to keep in sync)
   useEffect(() => {
-    if (isDrawerOpen && !cart) {
+    if (isDrawerOpen) {
       fetchCart(orgId, branchId);
     }
-  }, [isDrawerOpen, orgId, branchId, cart, fetchCart]);
+  }, [isDrawerOpen, orgId, branchId, fetchCart]);
 
   const formatPrice = (cents: number) => {
     return new Intl.NumberFormat('en-AE', {
@@ -41,41 +51,47 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
     }).format(cents / 100);
   };
 
+  const handleRequestQuote = async () => {
+    try {
+      setRequestingQuote(true);
+      // Resolve branch: prefer prop -> cart.branchId -> localStorage
+      const resolvedBranchId = branchId || cart?.branchId || (typeof window !== 'undefined' ? localStorage.getItem('currentBranchId') || undefined : undefined);
+      const url = new URL('/api/quotations/from-cart', window.location.origin);
+      if (resolvedBranchId) url.searchParams.set('branchId', resolvedBranchId);
+      const res = await fetch(url.toString(), { method: 'POST', credentials: 'include' });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to request quote');
+      setQuoteId(json.quotation?.id || null);
+    } catch (e) {
+      console.error(e);
+      alert((e as Error).message || 'Could not request a quote. Please try again.');
+    } finally {
+      setRequestingQuote(false);
+    }
+  };
+
   if (!isDrawerOpen) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
-        onClick={closeDrawer}
-      />
-
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
+    <Sheet open={isDrawerOpen} onOpenChange={(open) => !open && closeDrawer()}>
+      <SheetContent side="right" className="w-full max-w-[100vw] sm:max-w-lg md:max-w-xl flex flex-col p-0 overflow-x-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-blue-600 to-indigo-600">
-          <div className="flex items-center gap-2 text-white">
-            <ShoppingCart className="w-5 h-5" />
-            <h2 className="text-lg font-semibold">Shopping Cart</h2>
-            {cart && cart.itemCount > 0 && (
-              <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
-                {cart.itemCount}
-              </span>
-            )}
+        <SheetHeader className="p-4 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" />
+              <SheetTitle className="text-white">Shopping Cart</SheetTitle>
+              {cart && cart.itemCount > 0 && (
+                <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
+                  {cart.itemCount}
+                </span>
+              )}
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={closeDrawer}
-            className="text-white hover:bg-white/20"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+        </SheetHeader>
 
         {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <ScrollArea className="flex-1 p-4 pr-6">
           {!cart || cart.items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -95,7 +111,7 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
               </Button>
             </div>
           ) : (
-            <div>
+            <div className="space-y-4">
               {cart.items.map((item) => (
                 <CartItem
                   key={item.id}
@@ -107,26 +123,29 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
               ))}
             </div>
           )}
-        </div>
+        </ScrollArea>
 
         {/* Footer */}
         {cart && cart.items.length > 0 && (
           <div className="border-t bg-gray-50 p-4 space-y-4">
-            {/* Subtotal */}
+            {/* Subtotal hidden in quote flow */}
             <div className="flex items-center justify-between text-lg font-semibold">
-              <span>Subtotal:</span>
-              <span className="text-blue-600">
-                {formatPrice(cart.subtotalCents)}
-              </span>
+              <span>Total:</span>
+              <span className="text-blue-600">Price on request</span>
             </div>
 
             {/* Actions */}
             <div className="space-y-2">
-              <Link href="/checkout" onClick={closeDrawer} className="block">
-                <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                  Proceed to Checkout
-                </Button>
-              </Link>
+              <Button
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                onClick={handleRequestQuote}
+                disabled={requestingQuote}
+              >
+                {requestingQuote ? 'Requesting...' : 'Request a Quote'}
+              </Button>
+              {quoteId && (
+                <p className="text-xs text-green-600 text-center">Quote requested. ID: {quoteId}</p>
+              )}
               <Link href="/cart" onClick={closeDrawer} className="block">
                 <Button variant="outline" className="w-full">
                   View Full Cart
@@ -142,8 +161,8 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
             </div>
           </div>
         )}
-      </div>
-    </>
+      </SheetContent>
+    </Sheet>
   );
 }
 

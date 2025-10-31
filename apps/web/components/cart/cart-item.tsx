@@ -86,7 +86,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove, compact = false }: 
         </div>
 
         {/* Quantity & Remove */}
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-end gap-2 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"

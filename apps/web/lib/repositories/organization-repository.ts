@@ -47,14 +47,18 @@ export class OrganizationRepository implements IOrganizationRepository {
     });
   }
 
-  async findMembership(userId: string, orgId: string): Promise<Membership | null> {
+  async findMembership(userId: string, orgId?: string): Promise<Membership | null> {
+    // Since userId is now unique, we can find by userId directly
+    if (orgId) {
+      // If orgId is provided, verify it matches
+      const membership = await this.db.membership.findUnique({
+        where: { userId },
+      });
+      return membership && membership.orgId === orgId ? membership : null;
+    }
+    // Otherwise just find by userId (user can only have one membership)
     return this.db.membership.findUnique({
-      where: {
-        userId_orgId: {
-          userId,
-          orgId,
-        },
-      },
+      where: { userId },
     });
   }
 

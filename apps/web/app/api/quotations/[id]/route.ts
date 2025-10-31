@@ -24,6 +24,7 @@ const updateQuotationSchema = z.object({
     ])
     .optional(),
   convertToOrder: z.boolean().optional(),
+  message: z.string().max(1000).optional(),
 });
 
 /**
@@ -32,7 +33,7 @@ const updateQuotationSchema = z.object({
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -52,7 +53,8 @@ export async function GET(
     }
 
     const quotationService = getQuotationService();
-    const quotation = await quotationService.getQuotationById(params.id);
+    const { id } = await params;
+    const quotation = await quotationService.getQuotationById(id);
 
     // Verify quotation belongs to organization
     if (quotation.orgId !== membership.orgId) {
@@ -77,7 +79,7 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -102,7 +104,8 @@ export async function PATCH(
     const quotationService = getQuotationService();
 
     // Verify quotation belongs to organization
-    const quotation = await quotationService.getQuotationById(params.id);
+    const { id } = await params;
+    const quotation = await quotationService.getQuotationById(id);
     if (quotation.orgId !== membership.orgId) {
       return NextResponse.json(
         { error: 'Quotation not found' },
@@ -110,21 +113,43 @@ export async function PATCH(
       );
     }
 
-    // Convert to order if requested
+    // Disallow manual convert; conversion is handled based on Zoho API actions
     if (validatedData.convertToOrder) {
-      const order = await quotationService.convertToOrder(params.id);
-      return NextResponse.json({
-        success: true,
-        order,
-        quotation: await quotationService.getQuotationById(params.id),
-      });
+      return NextResponse.json({ error: 'Manual conversion is disabled. Status changes are driven by Zoho.' }, { status: 400 });
     }
 
     // Update status if provided
     if (validatedData.status) {
+      // If approved, attempt Zoho conversions
+      if (validatedData.status === 'APPROVED') {
+        try {
+          // Try converting estimate to invoice and sales order in Zoho if available
+          const { getZohoClient } = await import('@/lib/clients/zoho-client');
+          const { getQuotationService } = await import('@/lib/services/quotation-service');
+          const qs = getQuotationService();
+          const current = await qs.getQuotationById(id);
+          if ((current as any).zohoEstimateId) {
+            const zoho = getZohoClient();
+            const results = await Promise.allSettled([
+              zoho.convertEstimateToSalesOrder(membership.orgId, (current as any).zohoEstimateId),
+              zoho.convertEstimateToInvoice(membership.orgId, (current as any).zohoEstimateId),
+            ]);
+            const allOk = results.every(r => r.status === 'fulfilled');
+            if (allOk) {
+              // Update status to CONVERTED if Zoho conversions succeeded
+              const updated = await quotationService.updateStatus(id, 'CONVERTED', validatedData.message);
+              return NextResponse.json({ success: true, quotation: updated });
+            }
+          }
+        } catch (e) {
+          console.warn('[Quotations API] Zoho conversion on approval failed', e);
+        }
+      }
+
       const updatedQuotation = await quotationService.updateStatus(
-        params.id,
-        validatedData.status
+        id,
+        validatedData.status,
+        validatedData.message
       );
       return NextResponse.json({
         success: true,
@@ -147,7 +172,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -169,7 +194,8 @@ export async function DELETE(
     const quotationService = getQuotationService();
 
     // Verify quotation belongs to organization
-    const quotation = await quotationService.getQuotationById(params.id);
+    const { id } = await params;
+    const quotation = await quotationService.getQuotationById(id);
     if (quotation.orgId !== membership.orgId) {
       return NextResponse.json(
         { error: 'Quotation not found' },
@@ -177,7 +203,7 @@ export async function DELETE(
       );
     }
 
-    await quotationService.deleteQuotation(params.id);
+    await quotationService.deleteQuotation(id);
 
     return NextResponse.json({
       success: true,

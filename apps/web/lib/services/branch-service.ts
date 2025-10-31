@@ -24,6 +24,29 @@ export interface CreateBranchData {
     postalCode: string;
     country: string;
   };
+  // Status and Description
+  status?: string;
+  description?: string;
+  notes?: string;
+  // Budget Information
+  monthlyBudget?: number;
+  yearlyBudget?: number;
+  budgetCurrency?: string;
+  // Contact Information
+  phone?: string;
+  email?: string;
+  website?: string;
+  // Manager Information
+  managerName?: string;
+  managerEmail?: string;
+  managerPhone?: string;
+  // Operating Information
+  operatingHours?: string;
+  capacity?: number;
+  employeeCount?: number;
+  // Financial Information
+  costCenterCode?: string;
+  taxId?: string;
 }
 
 export class BranchService {
@@ -53,6 +76,23 @@ export class BranchService {
           name: data.name,
           billingId: billingAddress.id,
           shippingId: shippingAddress.id,
+          status: data.status || 'ACTIVE',
+          description: data.description,
+          notes: data.notes,
+          monthlyBudget: data.monthlyBudget,
+          yearlyBudget: data.yearlyBudget,
+          budgetCurrency: data.budgetCurrency || 'USD',
+          phone: data.phone,
+          email: data.email,
+          website: data.website,
+          managerName: data.managerName,
+          managerEmail: data.managerEmail,
+          managerPhone: data.managerPhone,
+          operatingHours: data.operatingHours,
+          capacity: data.capacity,
+          employeeCount: data.employeeCount,
+          costCenterCode: data.costCenterCode,
+          taxId: data.taxId,
         },
         include: {
           billing: true,
@@ -147,11 +187,33 @@ export class BranchService {
         throw new Error('Branch not found');
       }
 
-      // Update name if provided
-      if (data.name) {
+      // Build update data object
+      const updateData: any = {};
+      
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.status !== undefined) updateData.status = data.status;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.notes !== undefined) updateData.notes = data.notes;
+      if (data.monthlyBudget !== undefined) updateData.monthlyBudget = data.monthlyBudget;
+      if (data.yearlyBudget !== undefined) updateData.yearlyBudget = data.yearlyBudget;
+      if (data.budgetCurrency !== undefined) updateData.budgetCurrency = data.budgetCurrency;
+      if (data.phone !== undefined) updateData.phone = data.phone;
+      if (data.email !== undefined) updateData.email = data.email;
+      if (data.website !== undefined) updateData.website = data.website;
+      if (data.managerName !== undefined) updateData.managerName = data.managerName;
+      if (data.managerEmail !== undefined) updateData.managerEmail = data.managerEmail;
+      if (data.managerPhone !== undefined) updateData.managerPhone = data.managerPhone;
+      if (data.operatingHours !== undefined) updateData.operatingHours = data.operatingHours;
+      if (data.capacity !== undefined) updateData.capacity = data.capacity;
+      if (data.employeeCount !== undefined) updateData.employeeCount = data.employeeCount;
+      if (data.costCenterCode !== undefined) updateData.costCenterCode = data.costCenterCode;
+      if (data.taxId !== undefined) updateData.taxId = data.taxId;
+
+      // Update branch fields if any provided
+      if (Object.keys(updateData).length > 0) {
         await tx.branch.update({
           where: { id: branchId },
-          data: { name: data.name },
+          data: updateData,
         });
       }
 

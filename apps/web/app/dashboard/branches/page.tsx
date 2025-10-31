@@ -17,5 +17,12 @@ export default async function Page() {
     redirect("/onboarding");
   }
 
-  return <BranchesClient orgId={membership.orgId} userRole={membership.role} />;
+  return (
+    <BranchesClient 
+      orgId={membership.orgId} 
+      userRole={membership.role}
+      userName={session.user.name || session.user.email || "User"}
+      userEmail={session.user.email || ""}
+    />
+  );
 }

@@ -14,6 +14,9 @@
     <!-- Marked.js for markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked@11/marked.min.js"></script>
     
+    <!-- panzoom for zoom and pan functionality -->
+    <script src="https://cdn.jsdelivr.net/npm/@panzoom/panzoom@4.5.1/dist/panzoom.min.js"></script>
+    
     <style>
         body {
             box-sizing: border-box;
@@ -47,7 +50,78 @@
             padding: 1rem;
             border-radius: 8px;
             border: 1px solid #e1e4e8;
-            overflow-x: auto;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Mermaid container wrapper for zoom/pan */
+        .mermaid-container {
+            position: relative;
+            margin: 2rem 0;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            background: white;
+            overflow: hidden;
+        }
+        
+        .mermaid-wrapper {
+            position: relative;
+            width: 100%;
+            height: auto;
+            min-height: 400px;
+            overflow: hidden;
+            cursor: grab;
+        }
+        
+        .mermaid-wrapper:active {
+            cursor: grabbing;
+        }
+        
+        .mermaid-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .mermaid-controls button {
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            transition: background-color 0.2s;
+        }
+        
+        .mermaid-controls button:hover {
+            background: #f3f4f6;
+        }
+        
+        .mermaid-controls button:active {
+            background: #e5e7eb;
+        }
+        
+        .mermaid-title {
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            font-weight: 600;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         /* Loading spinner */
@@ -247,31 +321,137 @@
                 
                 let html = marked.parse(textWithoutMermaid);
                 
-                // Replace placeholders with actual Mermaid divs
+                // Replace placeholders with Mermaid containers with controls
                 mermaidBlocks.forEach((block) => {
                     const placeholder = `<!-- MERMAID_BLOCK_${block.index} -->`;
-                    const mermaidDiv = `<div class="mermaid" id="mermaid-diagram-${block.index + 1}">${block.code}</div>`;
-                    html = html.replace(placeholder, mermaidDiv);
+                    const diagramId = `mermaid-diagram-${block.index + 1}`;
+                    const wrapperId = `mermaid-wrapper-${block.index + 1}`;
+                    
+                    // Create interactive Mermaid container with controls
+                    const mermaidContainer = `
+                        <div class="mermaid-container">
+                            <div class="mermaid-title">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M12 2a15 15 0 0 0 0 20 15 15 0 0 1 0-20"></path>
+                                </svg>
+                                Mermaid Diagram ${block.index + 1}
+                            </div>
+                            <div class="mermaid-wrapper" id="${wrapperId}">
+                                <div class="mermaid" id="${diagramId}">${block.code}</div>
+                            </div>
+                            <div class="mermaid-controls">
+                                <button onclick="zoomIn('${wrapperId}')" title="Zoom In">+</button>
+                                <button onclick="zoomOut('${wrapperId}')" title="Zoom Out">-</button>
+                                <button onclick="resetView('${wrapperId}')" title="Reset View">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                                        <path d="M21 3v5h-5"></path>
+                                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                                        <path d="M8 16H3v5"></path>
+                                    </svg>
+                                </button>
+                                <button onclick="fitToScreen('${wrapperId}')" title="Fit to Screen">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                    html = html.replace(placeholder, mermaidContainer);
                 });
                 
                 document.getElementById('content').innerHTML = html;
+                
+                // Store panzoom instances
+                window.mermaidPanzooms = {};
                 
                 // Render Mermaid diagrams after content is loaded
                 setTimeout(() => {
                     const mermaidElements = document.querySelectorAll('.mermaid');
                     console.log(`Found ${mermaidElements.length} Mermaid diagrams to render`);
                     
-                    mermaidElements.forEach((el, index) => {
-                        console.log(`Rendering diagram ${index + 1}:`, el.id, el.textContent.substring(0, 50));
-                    });
-                    
                     mermaid.run({
                         querySelector: '.mermaid',
-                        suppressErrors: false // Set to false to see errors
+                        suppressErrors: false
+                    }).then(() => {
+                        // Initialize panzoom for each Mermaid diagram after rendering
+                        setTimeout(() => {
+                            mermaidBlocks.forEach((block) => {
+                                const wrapperId = `mermaid-wrapper-${block.index + 1}`;
+                                const wrapper = document.getElementById(wrapperId);
+                                if (wrapper) {
+                                    // Find the SVG element inside the wrapper
+                                    const svg = wrapper.querySelector('svg');
+                                    if (svg) {
+                                        // Initialize panzoom
+                                        const panzoom = Panzoom(svg, {
+                                            maxScale: 5,
+                                            minScale: 0.5,
+                                            step: 0.1,
+                                            animate: true
+                                        });
+                                        
+                                        // Store instance for controls
+                                        window.mermaidPanzooms[wrapperId] = panzoom;
+                                        
+                                        // Enable pan with mouse drag
+                                        wrapper.parentElement.addEventListener('wheel', panzoom.zoomWithWheel);
+                                        wrapper.parentElement.addEventListener('wheel', function(e) {
+                                            e.preventDefault();
+                                            panzoom.zoomWithWheel(e);
+                                        });
+                                    }
+                                }
+                            });
+                        }, 500);
                     }).catch(err => {
                         console.error('Mermaid rendering error:', err);
                     });
                 }, 300);
+                
+                // Control functions
+                window.zoomIn = function(wrapperId) {
+                    const panzoom = window.mermaidPanzooms[wrapperId];
+                    if (panzoom) {
+                        panzoom.zoomIn();
+                    }
+                };
+                
+                window.zoomOut = function(wrapperId) {
+                    const panzoom = window.mermaidPanzooms[wrapperId];
+                    if (panzoom) {
+                        panzoom.zoomOut();
+                    }
+                };
+                
+                window.resetView = function(wrapperId) {
+                    const panzoom = window.mermaidPanzooms[wrapperId];
+                    if (panzoom) {
+                        panzoom.reset();
+                    }
+                };
+                
+                window.fitToScreen = function(wrapperId) {
+                    const panzoom = window.mermaidPanzooms[wrapperId];
+                    const wrapper = document.getElementById(wrapperId);
+                    if (panzoom && wrapper) {
+                        const svg = wrapper.querySelector('svg');
+                        if (svg) {
+                            const bounds = svg.getBBox();
+                            const wrapperWidth = wrapper.clientWidth;
+                            const wrapperHeight = wrapper.clientHeight;
+                            const scale = Math.min(
+                                wrapperWidth / bounds.width,
+                                wrapperHeight / bounds.height,
+                                1
+                            );
+                            panzoom.setOptions({ minScale: scale * 0.5 });
+                            panzoom.reset();
+                        }
+                    }
+                };
             })
             .catch(error => {
                 console.error('Error loading README:', error);

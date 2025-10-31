@@ -9,7 +9,7 @@ import { ZohoContact } from '@/lib/domain/interfaces/IZohoClient';
 
 export class BranchZohoSyncService {
   /**
-   * Sync branch to Zoho Books as a contact/customer
+   * Sync branch to Zoho Books as a contact/customer (create if missing)
    */
   async syncBranchToZohoContact(branchId: string): Promise<void> {
     try {
@@ -25,12 +25,6 @@ export class BranchZohoSyncService {
 
       if (!branch) {
         throw new Error(`Branch not found: ${branchId}`);
-      }
-
-      // Check if already synced
-      if (branch.zohoContactId) {
-        console.log(`[BranchZohoSync] Branch ${branchId} already synced to Zoho contact ${branch.zohoContactId}`);
-        return;
       }
 
       // Map branch data to Zoho Contact format
@@ -65,7 +59,6 @@ export class BranchZohoSyncService {
         contactData.shipping_address!.street = branch.shipping.line1;
       }
 
-      // Create contact in Zoho Books
       const zohoClient = getZohoClient();
       
       // Log scope for debugging
@@ -75,19 +68,35 @@ export class BranchZohoSyncService {
       });
       console.log(`[BranchZohoSync] Attempting to create contact with scope: ${connection?.scope || 'not set'}`);
       
-      const zohoContact = await zohoClient.createContact(branch.orgId, contactData);
+      let contactId: string | undefined = branch.zohoContactId || undefined;
 
-      // Update branch with Zoho contact ID
-      await prisma.branch.update({
-        where: { id: branchId },
-        data: {
-          zohoContactId: zohoContact.contact_id!,
-          zohoSyncedAt: new Date(),
-          zohoSyncError: null,
-        },
-      });
+      if (branch.zohoContactId) {
+        // Update existing contact
+        await zohoClient.updateContact(branch.orgId, branch.zohoContactId, contactData);
+        await prisma.branch.update({
+          where: { id: branchId },
+          data: {
+            zohoSyncedAt: new Date(),
+            zohoSyncError: null,
+          },
+        });
+        console.log(`[BranchZohoSync] Updated Zoho contact ${branch.zohoContactId} for branch ${branchId}`);
+      } else {
+        // Create new contact
+        const zohoContact = await zohoClient.createContact(branch.orgId, contactData);
+        contactId = zohoContact.contact_id || contactId;
+        await prisma.branch.update({
+          where: { id: branchId },
+          data: {
+            zohoContactId: zohoContact.contact_id!,
+            zohoSyncedAt: new Date(),
+            zohoSyncError: null,
+          },
+        });
+        console.log(`[BranchZohoSync] Created Zoho contact ${zohoContact.contact_id} for branch ${branchId}`);
+      }
 
-      console.log(`[BranchZohoSync] Successfully synced branch ${branchId} to Zoho contact ${zohoContact.contact_id}`);
+      console.log(`[BranchZohoSync] Successfully synced branch ${branchId} to Zoho contact ${contactId || branch.zohoContactId}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[BranchZohoSync] Failed to sync branch ${branchId}:`, errorMessage);

@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 
 interface CategoryBreakdown {
   category: string;
-  revenue: number;
+  spending: number;
   orders: number;
   percentage: number;
 }
@@ -47,7 +47,7 @@ export function CategoryBarChart({ data }: CategoryBarChartProps) {
               <YAxis dataKey="category" type="category" width={90} />
               <Tooltip formatter={(value: number) => formatCurrency(value)} />
               <Legend />
-              <Bar dataKey="revenue" fill="#2563eb" name="Spent Amount" />
+              <Bar dataKey="spending" fill="#2563eb" name="Spent Amount" />
             </BarChart>
           </ResponsiveContainer>
         )}

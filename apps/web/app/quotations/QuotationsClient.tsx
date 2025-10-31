@@ -1,14 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BranchSelector } from '@/components/branch-selector';
-import { FileText, Plus, ArrowLeft, CheckCircle, X } from 'lucide-react';
-import Link from 'next/link';
+import { FileText, Plus, CheckCircle, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { QuotationChat } from './QuotationChat';
+import Link from 'next/link';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 interface Quotation {
   id: string;
@@ -49,9 +52,16 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedBranch, setSelectedBranch] = useState<string | undefined>();
+  const [selectedBranch, setSelectedBranch] = useState<string | undefined>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('currentBranchId') || undefined;
+    }
+    return undefined;
+  });
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [converting, setConverting] = useState<string | null>(null);
+  // Manual convert disabled; conversions happen based on Zoho response
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [chatForQuotation, setChatForQuotation] = useState<string | null>(null);
   const isAdmin = userRole === 'ADMIN' || userRole === 'OWNER';
 
   const fetchQuotations = useCallback(async () => {
@@ -83,33 +93,7 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
     fetchQuotations();
   }, [fetchQuotations]);
 
-  const handleConvertQuotation = async (quotationId: string) => {
-    if (converting) return;
-
-    setConverting(quotationId);
-    try {
-      const response = await fetch(`/api/quotations/${quotationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ convertToOrder: true }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to convert quotation');
-      }
-
-      const data = await response.json();
-      if (data.order) {
-        alert(`Quotation converted to order ${data.order.number}`);
-        fetchQuotations();
-      }
-    } catch (err) {
-      console.error('Failed to convert quotation:', err);
-      alert('Failed to convert quotation to order');
-    } finally {
-      setConverting(null);
-    }
-  };
+  // No manual convert
 
   const formatCurrency = (cents: number) => {
     return new Intl.NumberFormat('en-AE', {
@@ -118,58 +102,69 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
     }).format(cents / 100);
   };
 
+  const updateStatus = async (quotationId: string, status: 'APPROVED' | 'REJECTED', message?: string) => {
+    if (updating) return;
+    setUpdating(quotationId);
+    try {
+      const response = await fetch(`/api/quotations/${quotationId}` , {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status, message }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update quotation');
+      toast.success(`Quotation ${status.toLowerCase()}`);
+      fetchQuotations();
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to update quotation');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div className="container mx-auto px-4 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Dashboard
-                </Button>
-              </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                  <FileText className="h-6 w-6 text-blue-600" />
-                  Quotations
-                </h1>
-                <p className="text-sm text-gray-500">Manage your quotations</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              {isAdmin && (
-                <BranchSelector
-                  currentBranchId={selectedBranch}
-                  onBranchChange={setSelectedBranch}
-                />
-              )}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="EXPIRED">Expired</option>
-                <option value="CONVERTED">Converted</option>
-              </select>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Quotation
-              </Button>
+    <main className="container mx-auto px-4 lg:px-8 py-8">
+      {/* Page Header */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <FileText className="h-6 w-6 text-blue-600" />
+                Quotations
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">Manage your quotations</p>
             </div>
           </div>
+          <div className="flex items-center gap-4">
+            {isAdmin && (
+              <BranchSelector
+                currentBranchId={selectedBranch}
+                onBranchChange={setSelectedBranch}
+              />
+            )}
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="DRAFT">Draft</SelectItem>
+                <SelectItem value="SENT">Sent</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
+                <SelectItem value="EXPIRED">Expired</SelectItem>
+                <SelectItem value="CONVERTED">Converted</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Quotation
+            </Button>
+          </div>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 lg:px-8 py-8">
+      </div>
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-600">
             {error}
@@ -243,7 +238,9 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
                           {format(new Date(quotation.createdAt), 'MMM dd, yyyy')}
                         </td>
                         <td className="py-3 px-4 text-sm font-mono">
-                          {quotation.number}
+                          <Link href={`/quotations/${quotation.id}`} className="text-blue-600 hover:underline">
+                            {quotation.number}
+                          </Link>
                         </td>
                         <td className="py-3 px-4 text-sm">
                           {quotation.customer
@@ -275,19 +272,35 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleConvertQuotation(quotation.id)}
-                              disabled={
-                                converting === quotation.id ||
-                                quotation.status === 'CONVERTED' ||
-                                quotation.status === 'REJECTED' ||
-                                quotation.status === 'EXPIRED' ||
-                                quotation.status !== 'APPROVED' && quotation.status !== 'SENT'
-                              }
+                              onClick={() => updateStatus(quotation.id, 'APPROVED')}
+                              disabled={updating === quotation.id || quotation.status !== 'SENT'}
                             >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              {converting === quotation.id
-                                ? 'Converting...'
-                                : 'Convert'}
+                              Approve
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => setChatForQuotation(quotation.id)}
+                              disabled={updating === quotation.id}
+                            >
+                              Chat / Decline
+                            </Button>
+                            {/* Manual convert removed - status changes are driven by Zoho */}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/quotations/${quotation.id}/pdf`);
+                                  const json = await res.json();
+                                  if (!res.ok || !json.pdfUrl) throw new Error(json.error || 'No PDF available');
+                                  window.open(json.pdfUrl, '_blank');
+                                } catch (e) {
+                                  toast.error('Unable to open quotation PDF');
+                                }
+                              }}
+                            >
+                              View PDF
                             </Button>
                           </div>
                         </td>
@@ -299,8 +312,14 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
             </CardContent>
           </Card>
         )}
-      </main>
-    </div>
+      {chatForQuotation && (
+        <QuotationChat
+          quotationId={chatForQuotation}
+          open={!!chatForQuotation}
+          onOpenChange={(v) => setChatForQuotation(v ? chatForQuotation : null)}
+        />
+      )}
+    </main>
   );
 }
 

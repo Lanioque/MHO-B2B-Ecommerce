@@ -39,9 +39,10 @@ export interface IOrganizationRepository {
   findMembershipsByUserId(userId: string): Promise<Array<Membership & { org: Organization }>>;
 
   /**
-   * Find membership by user and org
+   * Find membership by user (and optionally org)
+   * Since userId is unique, orgId is optional
    */
-  findMembership(userId: string, orgId: string): Promise<Membership | null>;
+  findMembership(userId: string, orgId?: string): Promise<Membership | null>;
 
   /**
    * Update organization

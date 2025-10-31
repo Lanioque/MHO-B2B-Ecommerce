@@ -27,9 +27,9 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
   const getInitialBranch = () => {
     if (currentBranchId) return currentBranchId;
     if (typeof window !== 'undefined') {
-      return localStorage.getItem("currentBranchId") || "";
+      return localStorage.getItem("currentBranchId") || "all";
     }
-    return "";
+    return "all";
   };
   
   const [selectedBranch, setSelectedBranch] = useState<string>(getInitialBranch());
@@ -94,20 +94,24 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
       
       // Set initial branch if not set - check localStorage first
       const storedBranchId = localStorage.getItem("currentBranchId");
-      let initialBranchId = currentBranchId || selectedBranch || storedBranchId;
+      let initialBranchId = currentBranchId || selectedBranch || storedBranchId || "all";
       
       // Validate that the stored/selected branch exists in the fetched branches
-      if (initialBranchId && !data.branches.find(b => b.id === initialBranchId)) {
-        initialBranchId = null;
+      if (initialBranchId && initialBranchId !== "all" && !data.branches.find(b => b.id === initialBranchId)) {
+        initialBranchId = "all";
       }
       
-      if (!initialBranchId && data.branches && data.branches.length > 0) {
-        initialBranchId = data.branches[0].id;
-        localStorage.setItem("currentBranchId", initialBranchId);
+      // Default to "all" if no branch is selected
+      if (!initialBranchId || initialBranchId === "") {
+        initialBranchId = "all";
       }
       
-      if (initialBranchId && initialBranchId !== selectedBranch) {
+      if (initialBranchId !== selectedBranch) {
         setSelectedBranch(initialBranchId);
+        // Notify parent if branch changed
+        if (onBranchChange && initialBranchId === "all") {
+          onBranchChange("");
+        }
       }
     } catch (error) {
       console.error("Error fetching branches:", error);
@@ -119,28 +123,31 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
   const handleChange = async (value: string) => {
     const previousValue = selectedBranch;
     setSelectedBranch(value);
-    localStorage.setItem("currentBranchId", value);
+    
+    // Don't store "all" in localStorage
+    if (value !== "all") {
+      localStorage.setItem("currentBranchId", value);
+      
+      // Fetch branch to get orgId (only if needed)
+      try {
+        const branchResponse = await fetch(`/api/branches/${value}`, { credentials: "include" });
+        if (branchResponse.ok) {
+          const branchData = await branchResponse.json();
+          if (branchData.branch?.orgId) {
+            localStorage.setItem("currentOrgId", branchData.branch.orgId);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch branch org:", err);
+      }
+    } else {
+      // Clear branch selection when "All" is selected
+      localStorage.removeItem("currentBranchId");
+    }
     
     // Only call onBranchChange if the value actually changed
     if (value !== previousValue && onBranchChange) {
-      onBranchChange(value);
-    }
-    
-    // Fetch branch to get orgId (only if needed)
-    try {
-      const branchResponse = await fetch(`/api/branches/${value}`, { credentials: "include" });
-      if (branchResponse.ok) {
-        const branchData = await branchResponse.json();
-        if (branchData.branch?.orgId) {
-          localStorage.setItem("currentOrgId", branchData.branch.orgId);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch branch org:", err);
-    }
-    
-    if (onBranchChange) {
-      onBranchChange(value);
+      onBranchChange(value === "all" ? "" : value);
     }
   };
 
@@ -155,11 +162,12 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-gray-600">Branch:</span>
-      <Select value={selectedBranch} onValueChange={handleChange}>
+      <Select value={selectedBranch || "all"} onValueChange={handleChange}>
         <SelectTrigger className="w-[200px]">
           <SelectValue placeholder="Select branch" />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="all">All Branches</SelectItem>
           {branches.map((branch) => (
             <SelectItem key={branch.id} value={branch.id}>
               {branch.name}

@@ -6,6 +6,8 @@
 import { prisma } from '@/lib/prisma';
 import { NotFoundError, ValidationError } from '@/lib/errors';
 import { getOrderService } from './order-service';
+import { getZohoClient } from '@/lib/clients/zoho-client';
+import { getBranchZohoSyncService } from './branch-zoho-sync-service';
 
 export interface CreateQuotationData {
   orgId: string;
@@ -126,7 +128,60 @@ export class QuotationService {
       },
     });
 
-    return quotation as QuotationWithItems;
+    // Create Zoho Books estimate (best-effort; keep local quotation even on Zoho failure)
+    try {
+      const zoho = getZohoClient();
+      // Always use the branch's Zoho contact for all operations
+      let zohoContactId: string | undefined;
+      if (data.branchId) {
+        const branch = await prisma.branch.findUnique({ where: { id: data.branchId } });
+        if (branch?.zohoContactId) {
+          zohoContactId = branch.zohoContactId;
+        } else if (branch) {
+          const sync = getBranchZohoSyncService();
+          await sync.syncBranchToZohoContact(branch.id);
+          const refreshed = await prisma.branch.findUnique({ where: { id: branch.id } });
+          if (refreshed?.zohoContactId) {
+            zohoContactId = refreshed.zohoContactId;
+          }
+        }
+      }
+
+      const estimatePayload = {
+        customer_id: zohoContactId, // Zoho requires a valid customer
+        reference_number: quotation.number,
+        date: new Date().toISOString().slice(0, 10),
+        line_items: quotation.items.map((it) => ({
+          name: it.product.name,
+          sku: it.product.sku,
+          rate: it.unitPriceCents / 100,
+          quantity: it.quantity,
+        })),
+        notes: quotation.notes || undefined,
+      };
+
+      const zohoEstimate = await zoho.createEstimate(data.orgId, estimatePayload);
+      const estimateId = zohoEstimate.estimate_id || zohoEstimate.estimate_number || null;
+      try {
+        await prisma.quotation.update({
+          where: { id: quotation.id },
+          data: { /* @ts-ignore: field may not exist in older client */ zohoEstimateId: estimateId, status: 'SENT' },
+        });
+      } catch (saveErr) {
+        // Prisma client might be outdated (missing zohoEstimateId). Fallback to status only and store id in notes.
+        await prisma.quotation.update({
+          where: { id: quotation.id },
+          data: {
+            status: 'SENT',
+            notes: estimateId ? `${quotation.notes ? quotation.notes + '\n' : ''}ZohoEstimateId: ${estimateId}` : quotation.notes || undefined,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('[QuotationService] Zoho estimate creation failed:', err);
+    }
+
+    return (await this.getQuotationById(quotation.id)) as QuotationWithItems;
   }
 
   /**
@@ -229,11 +284,12 @@ export class QuotationService {
    */
   async updateStatus(
     id: string,
-    status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'CONVERTED'
+    status: 'DRAFT' | 'SENT' | 'APPROVED' | 'REJECTED' | 'EXPIRED' | 'CONVERTED',
+    customerMessage?: string
   ): Promise<QuotationWithItems> {
     const quotation = await prisma.quotation.update({
       where: { id },
-      data: { status },
+      data: { status, ...(customerMessage ? { customerMessage } : {}) },
       include: {
         customer: {
           select: {
@@ -315,6 +371,15 @@ export class QuotationService {
 
     // Update quotation status
     await this.updateStatus(quotationId, 'CONVERTED');
+
+    // Best-effort: sync order to Zoho (create sales order + invoice)
+    try {
+      const { getOrderZohoSyncService } = await import('./order-zoho-sync-service');
+      const syncService = getOrderZohoSyncService();
+      await syncService.syncOrderToZoho(order.id);
+    } catch (e) {
+      console.warn('[QuotationService] Non-fatal: failed to sync created order to Zoho', e);
+    }
 
     return order;
   }

@@ -21,6 +21,29 @@ const updateBranchSchema = z.object({
     postalCode: z.string(),
     country: z.string(),
   }).optional(),
+  // Status and Description
+  status: z.string().optional(),
+  description: z.string().optional(),
+  notes: z.string().optional(),
+  // Budget Information
+  monthlyBudget: z.number().optional(),
+  yearlyBudget: z.number().optional(),
+  budgetCurrency: z.string().optional(),
+  // Contact Information
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')),
+  website: z.string().url().optional().or(z.literal('')),
+  // Manager Information
+  managerName: z.string().optional(),
+  managerEmail: z.string().email().optional().or(z.literal('')),
+  managerPhone: z.string().optional(),
+  // Operating Information
+  operatingHours: z.string().optional(),
+  capacity: z.number().optional(),
+  employeeCount: z.number().optional(),
+  // Financial Information
+  costCenterCode: z.string().optional(),
+  taxId: z.string().optional(),
 });
 
 /**
@@ -74,6 +97,13 @@ async function updateBranchHandler(
 
   // Update branch
   const updatedBranch = await branchService.updateBranch(id, validated);
+  // Sync changes to Zoho contact
+  try {
+    const { getBranchZohoSyncService } = await import('@/lib/services/branch-zoho-sync-service');
+    await getBranchZohoSyncService().syncBranchToZohoContact(id);
+  } catch (e) {
+    console.warn('[Branches API] Zoho sync after update failed', e);
+  }
 
   return NextResponse.json({ branch: updatedBranch });
 }

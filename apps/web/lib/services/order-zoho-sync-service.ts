@@ -104,9 +104,49 @@ export class OrderZohoSyncService {
         currency_code: order.currency,
       };
 
-      // Create sales order in Zoho Books
+      // Create sales order in Zoho Books (with retry if contact missing)
       const zohoClient = getZohoClient();
-      const zohoSalesOrder = await zohoClient.createSalesOrder(order.orgId, salesOrderData);
+      let zohoSalesOrder;
+      try {
+        zohoSalesOrder = await zohoClient.createSalesOrder(order.orgId, salesOrderData);
+      } catch (err) {
+        const isMissingContact = err instanceof ZohoError && typeof err.message === 'string' && err.message.includes('Contact does not exist');
+        if (isMissingContact) {
+          console.warn(`[OrderZohoSync] Contact missing in Zoho. Attempting to re-sync branch/customer then retry...`);
+          // Attempt to resync contact for branch or customer
+          if (order.branchId) {
+            const syncService = getBranchZohoSyncService();
+            await syncService.syncBranchToZohoContact(order.branchId);
+            // refresh customerId from branch
+            const refreshed = await prisma.branch.findUnique({ where: { id: order.branchId } });
+            if (!refreshed?.zohoContactId) {
+              throw err; // give up
+            }
+            salesOrderData.customer_id = refreshed.zohoContactId;
+          } else if (order.customerId) {
+            // Try to create a simple contact from customer email if available
+            const customer = await prisma.customer.findUnique({ where: { id: order.customerId } });
+            if (customer?.email) {
+              try {
+                const created = await zohoClient.createContact(order.orgId, { contact_name: customer.email, email: customer.email } as any);
+                salesOrderData.customer_id = (created as any).contact_id;
+              } catch (e) {
+                console.warn('[OrderZohoSync] Failed to create Zoho contact for customer', e);
+                throw err;
+              }
+            } else {
+              throw err;
+            }
+          } else {
+            throw err;
+          }
+
+          // Retry once
+          zohoSalesOrder = await zohoClient.createSalesOrder(order.orgId, salesOrderData);
+        } else {
+          throw err;
+        }
+      }
 
       // Update order with Zoho sales order ID
       await this.orderRepository.updateZohoIds(

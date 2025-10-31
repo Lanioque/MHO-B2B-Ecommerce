@@ -5,12 +5,22 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useCart } from '@/lib/hooks/use-cart';
 import { CartItem } from '@/components/cart/cart-item';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
@@ -29,9 +39,21 @@ export default function CartPage() {
     fetchCart,
   } = useCart();
 
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+
+  const [branchId, setBranchId] = useState<string | null>(null);
+
   useEffect(() => {
-    fetchCart(orgId);
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('currentBranchId') : null;
+    if (stored) setBranchId(stored);
+    fetchCart(orgId, stored || undefined);
   }, [orgId, fetchCart]);
+
+  useEffect(() => {
+    if (branchId) {
+      fetchCart(orgId, branchId);
+    }
+  }, [branchId, orgId, fetchCart]);
 
   const formatPrice = (cents: number) => {
     return new Intl.NumberFormat('en-AE', {
@@ -40,10 +62,32 @@ export default function CartPage() {
     }).format(cents / 100);
   };
 
-  const handleClearCart = async () => {
-    if (confirm('Are you sure you want to clear your cart?')) {
-      await clearCart(orgId);
+  const [requestingQuote, setRequestingQuote] = useState(false);
+  const [quoteId, setQuoteId] = useState<string | null>(null);
+
+  const handleRequestQuote = async () => {
+    try {
+      setRequestingQuote(true);
+      const resolvedBranchId = cart?.branchId || branchId || (typeof window !== 'undefined' ? localStorage.getItem('currentBranchId') || undefined : undefined);
+      const url = new URL('/api/quotations/from-cart', window.location.origin);
+      if (resolvedBranchId) url.searchParams.set('branchId', resolvedBranchId);
+      const res = await fetch(url.toString(), { method: 'POST', credentials: 'include' });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Failed to request quote');
+      }
+      setQuoteId(json.quotation?.id || null);
+    } catch (e) {
+      console.error(e);
+      alert((e as Error).message || 'Could not request a quote. Please try again.');
+    } finally {
+      setRequestingQuote(false);
     }
+  };
+
+  const handleClearCart = async () => {
+    await clearCart(orgId);
+    setIsClearDialogOpen(false);
   };
 
   return (
@@ -126,7 +170,7 @@ export default function CartPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={handleClearCart}
+                    onClick={() => setIsClearDialogOpen(true)}
                     className="text-red-500 hover:text-red-700 hover:bg-red-50"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -169,22 +213,23 @@ export default function CartPage() {
                   <div className="border-t pt-4">
                     <div className="flex justify-between text-lg font-bold mb-4">
                       <span>Total</span>
-                      <span className="text-blue-600">
-                        {formatPrice(cart.subtotalCents)}
-                      </span>
+                      <span className="text-blue-600">Price on request</span>
                     </div>
 
                     <Button
                       className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                       size="lg"
-                      disabled
+                      onClick={handleRequestQuote}
+                      disabled={requestingQuote}
                     >
-                      Checkout (Coming Soon)
+                      {requestingQuote ? 'Requesting...' : 'Request a Quote'}
                     </Button>
 
-                    <p className="text-xs text-gray-500 text-center mt-3">
-                      Checkout functionality will be added in a future update
-                    </p>
+                    {quoteId && (
+                      <p className="text-xs text-green-600 text-center mt-3">
+                        Quote requested. Reference ID: {quoteId}
+                      </p>
+                    )}
                   </div>
 
                   <div className="border-t pt-4">
@@ -200,6 +245,27 @@ export default function CartPage() {
           </div>
         )}
       </main>
+
+      {/* Clear Cart Confirmation Dialog */}
+      <AlertDialog open={isClearDialogOpen} onOpenChange={setIsClearDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear Cart</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to clear your cart? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleClearCart}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Clear Cart
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
