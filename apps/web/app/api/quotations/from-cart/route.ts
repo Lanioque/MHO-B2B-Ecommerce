@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       orgId: membership.orgId,
       branchId: branchId,
       customerId,
-      items: cart.items.map((it) => ({
+      items: cart.items.map((it: typeof cart.items[number]) => ({
         productId: it.productId,
         quantity: it.quantity,
         unitPriceCents: it.unitPriceCents,

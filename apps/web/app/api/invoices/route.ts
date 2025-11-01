@@ -101,7 +101,7 @@ async function getInvoicesHandler(req: NextRequest) {
   const invoicesWithBranches = invoices.map((invoice: typeof invoices[number]) => {
     const invoiceData: any = { ...invoice };
     if (invoice.order?.branchId) {
-      const branch = branches.find((b) => b.id === invoice.order.branchId);
+      const branch = branches.find((b: typeof branches[number]) => b.id === invoice.order.branchId);
       if (branch) {
         invoiceData.order = {
           ...invoice.order,
