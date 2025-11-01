@@ -5,6 +5,7 @@ import { getOrderRepository } from "@/lib/repositories/order-repository";
 import { withErrorHandler } from "@/lib/middleware/error-handler";
 import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
+import { Order } from "@prisma/client";
 
 const updateOrderSchema = z.object({
   status: z.enum(["PENDING", "AWAITING_PAYMENT", "PAID", "FAILED", "CANCELLED", "REFUNDED"]).optional(),
@@ -25,7 +26,8 @@ async function getOrderHandler(
   const order = await orderService.getOrderById(orderId);
 
   // Verify user has access to the order's organization
-  await requireRole(order.orgId, Role.CUSTOMER);
+  // Order extends Order from Prisma which has orgId
+  await requireRole((order as Order).orgId, Role.CUSTOMER);
 
   return NextResponse.json({ order });
 }
@@ -52,7 +54,8 @@ async function updateOrderHandler(
   }
 
   // Require admin role to update order
-  await requireRole(order.orgId, Role.ADMIN);
+  // Order extends Order from Prisma which has orgId
+  await requireRole((order as Order).orgId, Role.ADMIN);
 
   // Update order
   const updated = await orderRepository.update(orderId, validated);

@@ -5,7 +5,8 @@
 
 import { Order, OrderItem, Prisma } from '@prisma/client';
 
-export interface OrderWithItems extends Order {
+// OrderWithItems includes all Order properties plus relations
+export type OrderWithItems = Order & {
   items: Array<OrderItem & { product: any }>;
   org?: any;
   customer?: any;

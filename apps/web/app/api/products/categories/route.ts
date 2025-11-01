@@ -23,7 +23,7 @@ async function getCategoriesHandler(req: NextRequest) {
 
   // Count products per category
   const categoryCounts = new Map<string, number>();
-  products.forEach((product) => {
+  products.forEach((product: typeof products[number]) => {
     if (product.categoryName) {
       const count = categoryCounts.get(product.categoryName) || 0;
       categoryCounts.set(product.categoryName, count + 1);

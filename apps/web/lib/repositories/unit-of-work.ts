@@ -15,7 +15,7 @@ export class UnitOfWork implements IUnitOfWork {
    * Automatically commits on success, rolls back on error
    */
   async execute<T>(callback: TransactionCallback<T>): Promise<T> {
-    return await this.client.$transaction(async (tx) => {
+    return await this.client.$transaction(async (tx: any) => {
       return await callback(tx as PrismaClient);
     });
   }

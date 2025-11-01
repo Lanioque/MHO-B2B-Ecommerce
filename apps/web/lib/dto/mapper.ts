@@ -50,8 +50,8 @@ export class CartMapper {
 
   static toResponseDto(cart: CartWithItems): CartResponseDto {
     const items = cart.items.map(this.toItemResponseDto);
-    const subtotalCents = items.reduce((sum, item) => sum + item.subtotalCents, 0);
-    const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    const subtotalCents = items.reduce((sum: number, item: typeof items[number]) => sum + item.subtotalCents, 0);
+    const itemCount = items.reduce((sum: number, item: typeof items[number]) => sum + item.quantity, 0);
 
     return {
       id: cart.id,

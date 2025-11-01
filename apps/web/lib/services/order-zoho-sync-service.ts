@@ -9,6 +9,7 @@ import { getOrderRepository } from '@/lib/repositories/order-repository';
 import { IOrderRepository } from '@/lib/domain/interfaces/IOrderRepository';
 import { ZohoSalesOrder, ZohoInvoice } from '@/lib/domain/interfaces/IZohoClient';
 import { getBranchZohoSyncService } from './branch-zoho-sync-service';
+import { Order } from '@prisma/client';
 
 export class OrderZohoSyncService {
   constructor(private readonly orderRepository: IOrderRepository) {}
@@ -25,23 +26,25 @@ export class OrderZohoSyncService {
         throw new Error(`Order not found: ${orderId}`);
       }
 
+      const orderBase = order as Order;
+      
       // Ensure branch is synced to Zoho first
-      if (order.branchId) {
+      if (orderBase.branchId) {
         const branch = await prisma.branch.findUnique({
-          where: { id: order.branchId },
+          where: { id: orderBase.branchId },
         });
 
         if (branch && !branch.zohoContactId) {
-          console.log(`[OrderZohoSync] Branch ${order.branchId} not synced, syncing now...`);
+          console.log(`[OrderZohoSync] Branch ${orderBase.branchId} not synced, syncing now...`);
           const syncService = getBranchZohoSyncService();
-          await syncService.syncBranchToZohoContact(order.branchId);
+          await syncService.syncBranchToZohoContact(orderBase.branchId);
 
           // Refetch branch to get updated zohoContactId
           const updatedBranch = await prisma.branch.findUnique({
-            where: { id: order.branchId },
+            where: { id: orderBase.branchId },
           });
           if (!updatedBranch?.zohoContactId) {
-            throw new Error(`Failed to sync branch ${order.branchId} to Zoho`);
+            throw new Error(`Failed to sync branch ${orderBase.branchId} to Zoho`);
           }
         }
       }
@@ -49,35 +52,35 @@ export class OrderZohoSyncService {
       // Get branch zohoContactId or use customer's Zoho contact ID
       let customerId: string;
       
-      if (order.branchId) {
+      if (orderBase.branchId) {
         const branch = await prisma.branch.findUnique({
-          where: { id: order.branchId },
+          where: { id: orderBase.branchId },
         });
         
         if (branch?.zohoContactId) {
           customerId = branch.zohoContactId;
         } else if (branch) {
           // Branch exists but not synced - sync it now
-          console.log(`[OrderZohoSync] Branch ${order.branchId} not synced to Zoho, syncing now...`);
+          console.log(`[OrderZohoSync] Branch ${orderBase.branchId} not synced to Zoho, syncing now...`);
           const syncService = getBranchZohoSyncService();
-          await syncService.syncBranchToZohoContact(order.branchId);
+          await syncService.syncBranchToZohoContact(orderBase.branchId);
           
           // Refetch branch to get zohoContactId
           const updatedBranch = await prisma.branch.findUnique({
-            where: { id: order.branchId },
+            where: { id: orderBase.branchId },
           });
           
           if (!updatedBranch?.zohoContactId) {
-            throw new Error(`Failed to sync branch ${order.branchId} to Zoho`);
+            throw new Error(`Failed to sync branch ${orderBase.branchId} to Zoho`);
           }
           customerId = updatedBranch.zohoContactId;
         } else {
-          throw new Error(`Branch ${order.branchId} not found`);
+          throw new Error(`Branch ${orderBase.branchId} not found`);
         }
-      } else if (order.customerId) {
+      } else if (orderBase.customerId) {
         // Fallback: try to use customer's Zoho contact ID
         const customer = await prisma.customer.findUnique({
-          where: { id: order.customerId },
+          where: { id: orderBase.customerId },
         });
         
         if (customer?.zohoContactId) {
@@ -92,9 +95,9 @@ export class OrderZohoSyncService {
       // Map order to Zoho Sales Order format
       const salesOrderData: ZohoSalesOrder = {
         customer_id: customerId,
-        reference_number: order.number,
-        date: new Date(order.createdAt).toISOString().split('T')[0],
-        line_items: order.items.map((item) => ({
+        reference_number: orderBase.number,
+        date: new Date(orderBase.createdAt).toISOString().split('T')[0],
+        line_items: order.items.map((item: typeof order.items[number]) => ({
           sku: item.product.sku,
           name: item.product.name,
           description: item.product.description || undefined,
@@ -102,34 +105,34 @@ export class OrderZohoSyncService {
           rate: item.unitPriceCents / 100, // Convert cents to dollars
           item_total: item.subtotalCents / 100,
         })),
-        currency_code: order.currency,
+        currency_code: orderBase.currency,
       };
 
       // Create sales order in Zoho Books (with retry if contact missing)
       const zohoClient = getZohoClient();
       let zohoSalesOrder;
       try {
-        zohoSalesOrder = await zohoClient.createSalesOrder(order.orgId, salesOrderData);
+        zohoSalesOrder = await zohoClient.createSalesOrder(orderBase.orgId, salesOrderData);
       } catch (err) {
         const isMissingContact = err instanceof ZohoError && typeof err.message === 'string' && err.message.includes('Contact does not exist');
         if (isMissingContact) {
           console.warn(`[OrderZohoSync] Contact missing in Zoho. Attempting to re-sync branch/customer then retry...`);
           // Attempt to resync contact for branch or customer
-          if (order.branchId) {
+          if (orderBase.branchId) {
             const syncService = getBranchZohoSyncService();
-            await syncService.syncBranchToZohoContact(order.branchId);
+            await syncService.syncBranchToZohoContact(orderBase.branchId);
             // refresh customerId from branch
-            const refreshed = await prisma.branch.findUnique({ where: { id: order.branchId } });
+            const refreshed = await prisma.branch.findUnique({ where: { id: orderBase.branchId } });
             if (!refreshed?.zohoContactId) {
               throw err; // give up
             }
             salesOrderData.customer_id = refreshed.zohoContactId;
-          } else if (order.customerId) {
+          } else if (orderBase.customerId) {
             // Try to create a simple contact from customer email if available
-            const customer = await prisma.customer.findUnique({ where: { id: order.customerId } });
+            const customer = await prisma.customer.findUnique({ where: { id: orderBase.customerId } });
             if (customer?.email) {
               try {
-                const created = await zohoClient.createContact(order.orgId, { contact_name: customer.email, email: customer.email } as any);
+                const created = await zohoClient.createContact(orderBase.orgId, { contact_name: customer.email, email: customer.email } as any);
                 salesOrderData.customer_id = (created as any).contact_id;
               } catch (e) {
                 console.warn('[OrderZohoSync] Failed to create Zoho contact for customer', e);
@@ -143,7 +146,7 @@ export class OrderZohoSyncService {
           }
 
           // Retry once
-          zohoSalesOrder = await zohoClient.createSalesOrder(order.orgId, salesOrderData);
+          zohoSalesOrder = await zohoClient.createSalesOrder(orderBase.orgId, salesOrderData);
         } else {
           throw err;
         }
@@ -159,7 +162,7 @@ export class OrderZohoSyncService {
       console.log(`[OrderZohoSync] Created sales order ${zohoSalesOrder.salesorder_id} for order ${orderId}`);
 
       // Generate invoice number from order number
-      const invoiceNumber = order.number.replace('ORD-', 'INV-');
+      const invoiceNumber = orderBase.number.replace('ORD-', 'INV-');
 
       // Create invoice from sales order
       // Use the sales order ID to properly link the invoice
@@ -170,25 +173,25 @@ export class OrderZohoSyncService {
         date: new Date().toISOString().split('T')[0],
         due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
         payment_terms: 30, // Default 30 days
-        reference_number: order.number,
+        reference_number: orderBase.number,
         line_items: salesOrderData.line_items,
-        currency_code: order.currency,
+        currency_code: orderBase.currency,
       };
 
       console.log(`[OrderZohoSync] Creating invoice from sales order ${zohoSalesOrder.salesorder_id}`);
 
-      const zohoInvoice = await zohoClient.createInvoice(order.orgId, invoiceData);
+      const zohoInvoice = await zohoClient.createInvoice(orderBase.orgId, invoiceData);
 
       // Mark invoice as sent so it's available for viewing
       let fullInvoice: ZohoInvoice;
       try {
-        await zohoClient.sendInvoice(order.orgId, zohoInvoice.invoice_id!);
+        await zohoClient.sendInvoice(orderBase.orgId, zohoInvoice.invoice_id!);
         // Fetch full invoice details after marking as sent
-        fullInvoice = await zohoClient.getInvoice(order.orgId, zohoInvoice.invoice_id!);
+        fullInvoice = await zohoClient.getInvoice(orderBase.orgId, zohoInvoice.invoice_id!);
       } catch (sendError) {
         console.warn(`[OrderZohoSync] Failed to mark invoice as sent, fetching anyway:`, sendError);
         // Still fetch the invoice even if marking as sent failed
-        fullInvoice = await zohoClient.getInvoice(order.orgId, zohoInvoice.invoice_id!);
+        fullInvoice = await zohoClient.getInvoice(orderBase.orgId, zohoInvoice.invoice_id!);
       }
 
       // Update order with invoice ID
@@ -202,8 +205,8 @@ export class OrderZohoSyncService {
       await prisma.invoice.upsert({
         where: { zohoInvoiceId: fullInvoice.invoice_id },
         create: {
-          orgId: order.orgId,
-          orderId: orderId,
+          orgId: orderBase.orgId,
+          orderId: orderBase.id,
           number: fullInvoice.invoice_number || `INV-${Date.now()}`,
           zohoInvoiceId: fullInvoice.invoice_id,
           pdfUrl: fullInvoice.pdf_url || fullInvoice.invoice_url,

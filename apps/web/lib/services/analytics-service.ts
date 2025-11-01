@@ -283,7 +283,7 @@ export class AnalyticsService {
     });
     
     // Sum up employeeCount from branches (if set)
-    const totalFromBranches = branches.reduce((sum, branch) => {
+    const totalFromBranches = branches.reduce((sum: number, branch: typeof branches[number]) => {
       return sum + (branch.employeeCount || 0);
     }, 0);
     
@@ -368,7 +368,7 @@ export class AnalyticsService {
       },
     });
 
-    return orders.map((item) => ({
+    return orders.map((item: typeof orders[number]) => ({
       status: item.status,
       count: item._count.id,
       spending: (item._sum.totalCents || 0) / 100,
@@ -415,8 +415,8 @@ export class AnalyticsService {
       }
     >();
 
-    orders.forEach((order) => {
-      order.items.forEach((item) => {
+    orders.forEach((order: typeof orders[number]) => {
+      order.items.forEach((item: typeof order.items[number]) => {
         const existing = productMap.get(item.productId) || {
           productName: item.product.name,
           sku: item.product.sku,
@@ -476,8 +476,8 @@ export class AnalyticsService {
       { spending: number; orders: Set<string> }
     >();
 
-    orders.forEach((order) => {
-      order.items.forEach((item) => {
+    orders.forEach((order: typeof orders[number]) => {
+      order.items.forEach((item: typeof order.items[number]) => {
         const category = item.product.categoryName || 'Uncategorized';
         const existing = categoryMap.get(category) || {
           spending: 0,

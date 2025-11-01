@@ -204,7 +204,7 @@ export class OrderRepository implements IOrderRepository {
     ]);
 
     // Fetch branches for orders that have branchId
-    const branchIds = [...new Set(data.map((order) => order.branchId).filter(Boolean))] as string[];
+    const branchIds = [...new Set(data.map((order: typeof data[number]) => order.branchId).filter(Boolean))] as string[];
     const branches = branchIds.length > 0
       ? await prisma.branch.findMany({
           where: { id: { in: branchIds } },
@@ -212,9 +212,9 @@ export class OrderRepository implements IOrderRepository {
       : [];
 
     // Map branches to orders
-    const dataWithBranches = data.map((order) => {
+    const dataWithBranches = data.map((order: typeof data[number]) => {
       if (order.branchId) {
-        const branch = branches.find((b) => b.id === order.branchId);
+        const branch = branches.find((b: typeof branches[number]) => b.id === order.branchId);
         if (branch) {
           (order as any).branch = branch;
         }

@@ -122,11 +122,11 @@ export class CartService {
    * Calculate cart totals
    */
   calculateTotals(cart: CartWithItems): CartTotals {
-    const subtotalCents = cart.items.reduce((total, item) => {
+    const subtotalCents = cart.items.reduce((total: number, item: typeof cart.items[number]) => {
       return total + item.quantity * item.unitPriceCents;
     }, 0);
 
-    const itemCount = cart.items.reduce((count, item) => {
+    const itemCount = cart.items.reduce((count: number, item: typeof cart.items[number]) => {
       return count + item.quantity;
     }, 0);
 

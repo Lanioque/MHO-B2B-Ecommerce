@@ -6,6 +6,7 @@ import { withErrorHandler } from "@/lib/middleware/error-handler";
 import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
 import { parseISO } from "date-fns";
+import { Order } from "@prisma/client";
 
 const createOrderSchema = z.object({
   cartId: z.string().uuid(),
@@ -28,8 +29,9 @@ async function createOrderHandler(req: NextRequest) {
 
   // Trigger Zoho sync asynchronously (don't await)
   const syncService = getOrderZohoSyncService();
-  syncService.syncOrderToZoho(order.id).catch((error) => {
-    console.error(`[Orders API] Failed to sync order ${order.id} to Zoho:`, error);
+  const orderBase = order as Order;
+  syncService.syncOrderToZoho(orderBase.id).catch((error) => {
+    console.error(`[Orders API] Failed to sync order ${orderBase.id} to Zoho:`, error);
   });
 
   return NextResponse.json({ order }, { status: 201 });

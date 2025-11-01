@@ -97,7 +97,7 @@ export class QuotationService {
         validUntil: data.validUntil,
         notes: data.notes,
         items: {
-          create: data.items.map((item) => ({
+          create: data.items.map((item: typeof data.items[number]) => ({
             productId: item.productId,
             quantity: item.quantity,
             unitPriceCents: item.unitPriceCents,
@@ -151,7 +151,7 @@ export class QuotationService {
         customer_id: zohoContactId, // Zoho requires a valid customer
         reference_number: quotation.number,
         date: new Date().toISOString().slice(0, 10),
-        line_items: quotation.items.map((it) => ({
+        line_items: quotation.items.map((it: typeof quotation.items[number]) => ({
           name: it.product.name,
           sku: it.product.sku,
           rate: it.unitPriceCents / 100,
@@ -330,7 +330,7 @@ export class QuotationService {
     const orderService = getOrderService();
     
     // Create order items from quotation items
-    const orderItems = quotation.items.map((item) => ({
+    const orderItems = quotation.items.map((item: typeof quotation.items[number]) => ({
       productId: item.productId,
       quantity: item.quantity,
       unitPriceCents: item.unitPriceCents,

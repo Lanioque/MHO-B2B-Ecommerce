@@ -53,7 +53,7 @@ export class OrderService {
 
     // Calculate totals
     let subtotalCents = 0;
-    const orderItems = cart.items.map((item) => {
+    const orderItems = cart.items.map((item: typeof cart.items[number]) => {
       const itemSubtotal = item.quantity * item.unitPriceCents;
       subtotalCents += itemSubtotal;
       

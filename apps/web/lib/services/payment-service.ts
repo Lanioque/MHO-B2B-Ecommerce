@@ -9,6 +9,7 @@ import { getOrderRepository } from '@/lib/repositories/order-repository';
 import { NotFoundError, ValidationError } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { Order } from '@prisma/client';
 
 export type PaymentOption = 'pay_now' | 'buy_now_pay_later';
 
@@ -73,7 +74,7 @@ export class PaymentService {
     // Create order in AWAITING_PAYMENT status
     const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     
-    const orderItems = quotation.items.map((item) => ({
+    const orderItems = quotation.items.map((item: typeof quotation.items[number]) => ({
       productId: item.productId,
       quantity: item.quantity,
       unitPriceCents: item.unitPriceCents,
@@ -104,13 +105,15 @@ export class PaymentService {
       },
     });
 
+    const orderBase = order as Order;
+    
     // If buy now pay later, mark order as paid and update quotation
     if (paymentOption === 'buy_now_pay_later') {
       await prisma.order.update({
-        where: { id: order.id },
+        where: { id: orderBase.id },
         data: {
           status: 'PAID',
-          paymentId: `BNPL-${order.id}`,
+          paymentId: `BNPL-${orderBase.id}`,
         },
       });
 
@@ -121,15 +124,15 @@ export class PaymentService {
       });
 
       // Sync to Zoho in background
-      this.syncOrderToZoho(order.id).catch((error) => {
-        console.error(`[PaymentService] Failed to sync order ${order.id} to Zoho:`, error);
+      this.syncOrderToZoho(orderBase.id).catch((error) => {
+        console.error(`[PaymentService] Failed to sync order ${orderBase.id} to Zoho:`, error);
       });
 
       // Return success URL for BNPL
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
       return {
-        paymentUrl: `${appUrl}/checkout/success?orderId=${order.id}&tranRef=${tranRef}`,
-        orderId: order.id,
+        paymentUrl: `${appUrl}/checkout/success?orderId=${orderBase.id}&tranRef=${tranRef}`,
+        orderId: orderBase.id,
         tranRef,
       };
     }
@@ -145,9 +148,9 @@ export class PaymentService {
       customerEmail,
       customerName: customerName || quotation.customer?.firstName || undefined,
       customerPhone,
-      returnSuccessUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/telr/return?status=success&tranRef=${tranRef}&orderId=${order.id}`,
-      returnDeclineUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/telr/return?status=decline&tranRef=${tranRef}&orderId=${order.id}`,
-      returnCancelUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/telr/return?status=cancel&tranRef=${tranRef}&orderId=${order.id}`,
+      returnSuccessUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/telr/return?status=success&tranRef=${tranRef}&orderId=${orderBase.id}`,
+      returnDeclineUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/telr/return?status=decline&tranRef=${tranRef}&orderId=${orderBase.id}`,
+      returnCancelUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/telr/return?status=cancel&tranRef=${tranRef}&orderId=${orderBase.id}`,
       langId: 'en',
       testMode: process.env.TELR_MODE === 'test',
     };
@@ -157,13 +160,13 @@ export class PaymentService {
       
       return {
         paymentUrl: paymentResponse.paymentUrl,
-        orderId: order.id,
+        orderId: orderBase.id,
         tranRef: paymentResponse.tranRef,
       };
     } catch (error) {
       // If payment initiation fails, mark order as FAILED
       await prisma.order.update({
-        where: { id: order.id },
+        where: { id: orderBase.id },
         data: { status: 'FAILED' },
       });
 
@@ -187,13 +190,15 @@ export class PaymentService {
       throw new NotFoundError(`Order not found for transaction reference: ${tranRef}`);
     }
 
+    const orderBase = order as Order;
+
     // Update order based on payment status
     const status = payload.status?.toUpperCase();
     
     if (status === 'A' || status === 'APPROVED' || status === 'SUCCESS') {
       // Payment successful
       await prisma.order.update({
-        where: { id: order.id },
+        where: { id: orderBase.id },
         data: {
           status: 'PAID',
           paymentId: payload.telr_ref || tranRef,
@@ -201,16 +206,16 @@ export class PaymentService {
       });
 
       // Update quotation status if exists
-      await this.updateQuotationStatusIfNeeded(order.id);
+      await this.updateQuotationStatusIfNeeded(orderBase.id);
 
       // Sync to Zoho in background
-      this.syncOrderToZoho(order.id).catch((error) => {
-        console.error(`[PaymentService] Failed to sync order ${order.id} to Zoho:`, error);
+      this.syncOrderToZoho(orderBase.id).catch((error) => {
+        console.error(`[PaymentService] Failed to sync order ${orderBase.id} to Zoho:`, error);
       });
     } else if (status === 'D' || status === 'DECLINED' || status === 'FAILED') {
       // Payment declined/failed
       await prisma.order.update({
-        where: { id: order.id },
+        where: { id: orderBase.id },
         data: {
           status: 'FAILED',
         },
@@ -218,7 +223,7 @@ export class PaymentService {
     } else if (status === 'C' || status === 'CANCELLED' || status === 'CANCEL') {
       // Payment cancelled
       await prisma.order.update({
-        where: { id: order.id },
+        where: { id: orderBase.id },
         data: {
           status: 'CANCELLED',
         },
@@ -231,7 +236,7 @@ export class PaymentService {
         source: 'telr',
         type: 'payment.callback',
         payload: payload as any,
-        orderId: order.id,
+        orderId: orderBase.id,
         status: 'PROCESSED',
       },
     });
@@ -304,10 +309,11 @@ export class PaymentService {
       throw new NotFoundError('Order not found');
     }
 
+    const orderBase = order as Order;
     return {
-      status: order.status,
-      tranRef: order.telrTranRef || null,
-      paymentId: order.paymentId || null,
+      status: orderBase.status,
+      tranRef: orderBase.telrTranRef || null,
+      paymentId: orderBase.paymentId || null,
     };
   }
 }
