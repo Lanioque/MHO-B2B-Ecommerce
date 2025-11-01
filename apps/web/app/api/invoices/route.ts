@@ -83,7 +83,7 @@ async function getInvoicesHandler(req: NextRequest) {
   // Fetch branches for orders that have branchId
   const branchIds = [...new Set(
     invoices
-      .map((invoice) => invoice.order?.branchId)
+      .map((invoice: typeof invoices[number]) => invoice.order?.branchId)
       .filter(Boolean)
   )] as string[];
 
