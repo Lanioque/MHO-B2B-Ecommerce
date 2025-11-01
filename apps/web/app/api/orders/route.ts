@@ -5,6 +5,7 @@ import { getOrderZohoSyncService } from "@/lib/services/order-zoho-sync-service"
 import { withErrorHandler } from "@/lib/middleware/error-handler";
 import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
+import { parseISO } from "date-fns";
 
 const createOrderSchema = z.object({
   cartId: z.string().uuid(),
@@ -49,6 +50,8 @@ async function getOrdersHandler(req: NextRequest) {
   const orgId = searchParams.get("orgId");
   const branchId = searchParams.get("branchId");
   const status = searchParams.get("status");
+  const startDateParam = searchParams.get("startDate");
+  const endDateParam = searchParams.get("endDate");
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
 
@@ -60,12 +63,27 @@ async function getOrdersHandler(req: NextRequest) {
   const { getOrderRepository } = await import("@/lib/repositories/order-repository");
   const orderRepository = getOrderRepository();
 
+  const filter: any = {
+    orgId,
+    branchId: branchId || undefined,
+    status: status || undefined,
+  };
+
+  // Add date range filtering
+  if (startDateParam || endDateParam) {
+    if (startDateParam) {
+      filter.dateFrom = parseISO(startDateParam);
+    }
+    if (endDateParam) {
+      const endDate = parseISO(endDateParam);
+      // Include the entire end date (set to end of day)
+      endDate.setHours(23, 59, 59, 999);
+      filter.dateTo = endDate;
+    }
+  }
+
   const result = await orderRepository.findMany(
-    {
-      orgId,
-      branchId: branchId || undefined,
-      status: status || undefined,
-    },
+    filter,
     { page, pageSize }
   );
 

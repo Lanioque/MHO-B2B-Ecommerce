@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MetricCard } from '@/components/analytics/MetricCard';
-import { DateRangePicker } from '@/components/analytics/DateRangePicker';
 import { RevenueChart } from '@/components/analytics/RevenueChart';
 import { StatusPieChart } from '@/components/analytics/StatusPieChart';
 import { CategoryBarChart } from '@/components/analytics/CategoryBarChart';
@@ -26,6 +25,7 @@ import {
 } from 'lucide-react';
 import { subDays } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DateRangePicker } from '@/components/analytics/DateRangePicker';
 
 interface AnalyticsClientProps {
   orgId: string;
@@ -106,10 +106,9 @@ export default function AnalyticsClient({
     };
   }>>([]);
   const [branchAnalytics, setBranchAnalytics] = useState<Record<string, AnalyticsData>>({});
-  const [period, setPeriod] = useState('30');
-  const [startDate, setStartDate] = useState(subDays(new Date(), 30));
-  const [endDate, setEndDate] = useState(new Date());
   const [selectedBranch, setSelectedBranch] = useState<string | undefined>();
+  const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 30));
+  const [endDate, setEndDate] = useState<Date>(new Date());
   const isAdmin = userRole === 'ADMIN' || userRole === 'OWNER';
 
   const fetchBranches = useCallback(async () => {
@@ -122,12 +121,13 @@ export default function AnalyticsClient({
         // Fetch analytics for each branch when "All Branches" is selected
         if (!selectedBranch || selectedBranch === "all") {
           const branchAnalyticsData: Record<string, any> = {};
+          const startDateStr = startDate.toISOString();
+          const endDateStr = endDate.toISOString();
           for (const branch of data.branches || []) {
             try {
               const branchParams = new URLSearchParams({
-                period,
-                startDate: startDate.toISOString(),
-                endDate: endDate.toISOString(),
+                startDate: startDateStr,
+                endDate: endDateStr,
                 branchId: branch.id,
               });
               const branchResponse = await fetch(`/api/analytics?${branchParams.toString()}`);
@@ -150,7 +150,7 @@ export default function AnalyticsClient({
     } catch (err) {
       console.error('Failed to fetch branches:', err);
     }
-  }, [orgId, period, startDate, endDate, selectedBranch]);
+  }, [orgId, selectedBranch, startDate, endDate]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -164,7 +164,6 @@ export default function AnalyticsClient({
       setError(null);
 
       const params = new URLSearchParams({
-        period,
         startDate: startDate.toISOString(),
         endDate: endDate.toISOString(),
       });
@@ -206,7 +205,7 @@ export default function AnalyticsClient({
     } finally {
       setLoading(false);
     }
-  }, [period, startDate, endDate, selectedBranch]);
+  }, [selectedBranch, startDate, endDate]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -217,18 +216,8 @@ export default function AnalyticsClient({
       fetchBranches();
     }
     // Note: fetchBranches is already memoized with its dependencies, but we include
-    // period, startDate, endDate, selectedBranch here to trigger re-fetch when filters change
-  }, [isAdmin, fetchBranches, period, startDate, endDate, selectedBranch]);
-
-  const handlePeriodChange = (
-    newPeriod: string,
-    newStartDate: Date,
-    newEndDate: Date
-  ) => {
-    setPeriod(newPeriod);
-    setStartDate(newStartDate);
-    setEndDate(newEndDate);
-  };
+    // dateRange, selectedBranch here to trigger re-fetch when filters change
+  }, [isAdmin, fetchBranches, selectedBranch]);
 
   const handleBranchChange = (branchId: string) => {
     // BranchSelector passes "" for "all", convert to undefined
@@ -275,49 +264,55 @@ export default function AnalyticsClient({
               <p className="text-sm text-gray-500 mt-1">Business insights and metrics</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <DateRangePicker value={period} onChange={handlePeriodChange} />
-            {isAdmin && (
-              <BranchSelector
-                currentBranchId={selectedBranch}
-                onBranchChange={handleBranchChange}
+          <div className="flex flex-col lg:flex-row items-start gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              {isAdmin && (
+                <BranchSelector
+                  currentBranchId={selectedBranch}
+                  onBranchChange={handleBranchChange}
+                />
+              )}
+              <DateRangePicker
+                value="30"
+                onChange={(period, start, end) => {
+                  setStartDate(start);
+                  setEndDate(end);
+                }}
               />
-            )}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                    const params = new URLSearchParams({
-                      format: 'csv',
-                      period,
-                      startDate: startDate.toISOString(),
-                      endDate: endDate.toISOString(),
-                    });
-                    if (selectedBranch && selectedBranch !== "all") params.append('branchId', selectedBranch);
-                  window.open(`/api/analytics/export?${params.toString()}`);
-                }}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                    const params = new URLSearchParams({
-                      format: 'pdf',
-                      period,
-                      startDate: startDate.toISOString(),
-                      endDate: endDate.toISOString(),
-                    });
-                    if (selectedBranch && selectedBranch !== "all") params.append('branchId', selectedBranch);
-                  window.open(`/api/analytics/export?${params.toString()}`);
-                }}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                PDF
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                      const params = new URLSearchParams({
+                        format: 'csv',
+                        startDate: startDate.toISOString(),
+                        endDate: endDate.toISOString(),
+                      });
+                      if (selectedBranch && selectedBranch !== "all") params.append('branchId', selectedBranch);
+                    window.open(`/api/analytics/export?${params.toString()}`);
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                      const params = new URLSearchParams({
+                        format: 'pdf',
+                        startDate: startDate.toISOString(),
+                        endDate: endDate.toISOString(),
+                      });
+                      if (selectedBranch && selectedBranch !== "all") params.append('branchId', selectedBranch);
+                    window.open(`/api/analytics/export?${params.toString()}`);
+                  }}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  PDF
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -390,9 +385,11 @@ export default function AnalyticsClient({
                   {branches.map((branch) => {
                     const branchData = branchAnalytics[branch.id];
                     const formatCurrency = (amount: number) => {
-                      return new Intl.NumberFormat('en-US', {
+                      return new Intl.NumberFormat('en-AE', {
                         style: 'currency',
-                        currency: branch.budgetCurrency || 'USD',
+                        currency: branch.budgetCurrency || 'AED',
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
                       }).format(amount);
                     };
 

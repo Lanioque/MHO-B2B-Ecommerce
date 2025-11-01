@@ -24,6 +24,8 @@ import { FileText, Search, Filter, AlertCircle, Download, Eye } from 'lucide-rea
 import Link from 'next/link';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { BranchSelector } from '@/components/branch-selector';
+import { DateRangePicker } from '@/components/analytics/DateRangePicker';
+import { startOfDay, endOfDay } from 'date-fns';
 
 interface Invoice {
   id: string;
@@ -61,6 +63,8 @@ export default function InvoicesListPage() {
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: 20,
@@ -94,6 +98,14 @@ export default function InvoicesListPage() {
       if (statusFilter !== 'all') {
         params.append('status', statusFilter);
       }
+      
+      if (startDate) {
+        params.append('startDate', startOfDay(startDate).toISOString());
+      }
+      
+      if (endDate) {
+        params.append('endDate', endOfDay(endDate).toISOString());
+      }
 
       const response = await fetch(`/api/invoices?${params.toString()}`);
       
@@ -114,7 +126,7 @@ export default function InvoicesListPage() {
     } finally {
       setLoading(false);
     }
-  }, [orgId, selectedBranchId, statusFilter, pagination.page, pagination.pageSize]);
+  }, [orgId, selectedBranchId, statusFilter, pagination.page, pagination.pageSize, startDate, endDate]);
 
   // Fetch invoices on mount and when dependencies change
   useEffect(() => {
@@ -281,7 +293,18 @@ export default function InvoicesListPage() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Date Range Picker */}
+          <DateRangePicker
+            value={startDate && endDate ? 'custom' : '30'}
+            onChange={(period, start, end) => {
+              setStartDate(start);
+              setEndDate(end);
+              setPagination((prev) => ({ ...prev, page: 1 })); // Reset to first page
+            }}
+          />
         </div>
+
 
         {/* Results count */}
         <div className="text-sm text-gray-600">
