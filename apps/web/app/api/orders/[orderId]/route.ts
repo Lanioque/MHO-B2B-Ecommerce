@@ -5,7 +5,7 @@ import { getOrderRepository } from "@/lib/repositories/order-repository";
 import { withErrorHandler } from "@/lib/middleware/error-handler";
 import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
-import { Order } from "@prisma/client";
+import type { Order } from "@/lib/prisma-types";
 
 const updateOrderSchema = z.object({
   status: z.enum(["PENDING", "AWAITING_PAYMENT", "PAID", "FAILED", "CANCELLED", "REFUNDED"]).optional(),

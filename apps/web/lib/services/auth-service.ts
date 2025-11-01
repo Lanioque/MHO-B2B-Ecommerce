@@ -4,7 +4,7 @@
  */
 
 import { IUserRepository } from '@/lib/domain/interfaces/IUserRepository';
-import { User } from '@prisma/client';
+import type { User } from '@/lib/prisma-types';
 import bcrypt from 'bcryptjs';
 import { ConflictError } from '@/lib/errors';
 import { AUTH_CONSTANTS } from '@/lib/config/constants';

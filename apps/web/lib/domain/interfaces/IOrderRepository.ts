@@ -3,7 +3,7 @@
  * Defines the contract for order data access
  */
 
-import { Order, OrderItem, Prisma } from '@prisma/client';
+import type { Order, OrderItem, Prisma } from '@/lib/prisma-types';
 
 // OrderWithItems includes all Order properties plus relations
 export type OrderWithItems = Order & {

@@ -3,7 +3,7 @@
  * Defines the contract for product data access
  */
 
-import { Product } from '@prisma/client';
+import type { Product } from '@/lib/prisma-types';
 
 export interface ProductFilter {
   isVisible?: boolean;

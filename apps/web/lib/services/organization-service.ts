@@ -8,7 +8,7 @@ import {
   CreateOrganizationData,
 } from '@/lib/domain/interfaces/IOrganizationRepository';
 import { IUnitOfWork } from '@/lib/domain/interfaces/IUnitOfWork';
-import { Organization, Membership } from '@prisma/client';
+import type { Organization, Membership } from '@/lib/prisma-types';
 import { NotFoundError } from '@/lib/errors';
 import { getOrganizationRepository } from '@/lib/repositories/organization-repository';
 import { getUnitOfWork } from '@/lib/repositories/unit-of-work';

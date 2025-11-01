@@ -3,7 +3,7 @@
  * Convert between domain models and DTOs
  */
 
-import { Product } from '@prisma/client';
+import type { Product } from '@/lib/prisma-types';
 import { ProductResponseDto } from './ProductDto';
 import { CartResponseDto, CartItemResponseDto } from './CartDto';
 import { CartWithItems } from '@/lib/domain/interfaces/ICartRepository';

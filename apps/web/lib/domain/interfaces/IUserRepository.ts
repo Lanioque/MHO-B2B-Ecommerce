@@ -2,7 +2,7 @@
  * User Repository Interface
  */
 
-import { User, Membership } from '@prisma/client';
+import type { User, Membership } from '@/lib/prisma-types';
 
 export interface CreateUserData {
   email: string;

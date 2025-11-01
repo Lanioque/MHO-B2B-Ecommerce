@@ -9,7 +9,7 @@ import { getOrderRepository } from '@/lib/repositories/order-repository';
 import { IOrderRepository } from '@/lib/domain/interfaces/IOrderRepository';
 import { ZohoSalesOrder, ZohoInvoice } from '@/lib/domain/interfaces/IZohoClient';
 import { getBranchZohoSyncService } from './branch-zoho-sync-service';
-import { Order } from '@prisma/client';
+import type { Order } from '@/lib/prisma-types';
 
 export class OrderZohoSyncService {
   constructor(private readonly orderRepository: IOrderRepository) {}

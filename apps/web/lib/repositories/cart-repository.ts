@@ -10,7 +10,7 @@ import {
   CartIdentifier,
   AddItemData,
 } from '@/lib/domain/interfaces/ICartRepository';
-import { CartItem } from '@prisma/client';
+import type { CartItem } from '@/lib/prisma-types';
 
 export class CartRepository implements ICartRepository {
   private includeClause = {

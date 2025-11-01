@@ -11,7 +11,7 @@ import {
   CreateProductData,
   UpdateProductData,
 } from '@/lib/domain/interfaces/IProductRepository';
-import { Product } from '@prisma/client';
+import type { Product } from '@/lib/prisma-types';
 import { ConflictError, NotFoundError } from '@/lib/errors';
 import { getProductRepository } from '@/lib/repositories/product-repository';
 

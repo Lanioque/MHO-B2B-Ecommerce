@@ -13,7 +13,7 @@ import {
   PaginationOptions,
   PaginatedResult,
 } from '@/lib/domain/interfaces/IOrderRepository';
-import { Order } from '@prisma/client';
+import type { Order } from '@/lib/prisma-types';
 
 export class OrderRepository implements IOrderRepository {
   private includeClause = {

@@ -6,7 +6,7 @@ import { withErrorHandler } from "@/lib/middleware/error-handler";
 import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
 import { parseISO } from "date-fns";
-import { Order } from "@prisma/client";
+import type { Order } from "@/lib/prisma-types";
 
 const createOrderSchema = z.object({
   cartId: z.string().uuid(),

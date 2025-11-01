@@ -3,7 +3,7 @@
  * Defines contract for cart data operations
  */
 
-import { Cart, CartItem, Product } from '@prisma/client';
+import type { Cart, CartItem, Product } from '@/lib/prisma-types';
 
 export type CartWithItems = Cart & {
   items: (CartItem & {

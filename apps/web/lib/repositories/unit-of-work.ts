@@ -3,7 +3,7 @@
  * Manages transactions across multiple repositories
  */
 
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@/lib/prisma-types';
 import { prisma } from '@/lib/prisma';
 import { IUnitOfWork, TransactionCallback } from '@/lib/domain/interfaces/IUnitOfWork';
 

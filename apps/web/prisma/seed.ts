@@ -1,5 +1,12 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+// Use dynamic import for PrismaClient to handle cases where it's not generated yet
+let PrismaClient: any;
+try {
+  const prismaModule = require("@prisma/client");
+  PrismaClient = prismaModule.PrismaClient;
+} catch {
+  throw new Error("Prisma Client not generated. Please run 'pnpm prisma generate' first.");
+}
 
 const prisma = new PrismaClient();
 

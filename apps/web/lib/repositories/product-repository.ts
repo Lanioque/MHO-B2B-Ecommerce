@@ -2,7 +2,7 @@
  * Product Repository Implementation
  */
 
-import { Product, PrismaClient } from '@prisma/client';
+import type { Product, PrismaClient } from '@/lib/prisma-types';
 import { prisma } from '@/lib/prisma';
 import {
   IProductRepository,

@@ -3,7 +3,7 @@
  * Defines the contract for transaction management
  */
 
-import { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '@/lib/prisma-types';
 
 export type TransactionCallback<T> = (tx: PrismaClient) => Promise<T>;
 

@@ -3,7 +3,7 @@
  * Business logic for branch operations with transaction support
  */
 
-import { Branch, Address, PrismaClient } from '@prisma/client';
+import type { Branch, Address, PrismaClient } from '@/lib/prisma-types';
 import { IUnitOfWork } from '@/lib/domain/interfaces/IUnitOfWork';
 import { getUnitOfWork } from '@/lib/repositories/unit-of-work';
 

@@ -2,7 +2,7 @@
  * Organization Repository Interface
  */
 
-import { Organization, Membership } from '@prisma/client';
+import type { Organization, Membership } from '@/lib/prisma-types';
 
 export interface CreateOrganizationData {
   name: string;

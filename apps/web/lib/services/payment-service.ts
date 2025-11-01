@@ -9,7 +9,7 @@ import { getOrderRepository } from '@/lib/repositories/order-repository';
 import { NotFoundError, ValidationError } from '@/lib/errors';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
-import { Order } from '@prisma/client';
+import type { Order } from '@/lib/prisma-types';
 
 export type PaymentOption = 'pay_now' | 'buy_now_pay_later';
 

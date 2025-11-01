@@ -328,8 +328,9 @@ export class AnalyticsService {
     // Group by date
     const dateMap = new Map<string, { spending: number; orders: Set<string> }>();
 
-    orders.forEach((order) => {
-      const dateKey = format(order.createdAt, 'yyyy-MM-dd');
+    orders.forEach((order: typeof orders[number]) => {
+      const orderBase = order as any; // Order properties come from Prisma query result
+      const dateKey = format(orderBase.createdAt, 'yyyy-MM-dd');
       const existing = dateMap.get(dateKey) || {
         spending: 0,
         orders: new Set<string>(),

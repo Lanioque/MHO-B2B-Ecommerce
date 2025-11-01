@@ -2,7 +2,7 @@
  * User Repository Implementation
  */
 
-import { User, Membership, PrismaClient } from '@prisma/client';
+import type { User, Membership, PrismaClient } from '@/lib/prisma-types';
 import { prisma } from '@/lib/prisma';
 import {
   IUserRepository,
