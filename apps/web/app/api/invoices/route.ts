@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, requireRole, Role } from "@/lib/auth-helpers";
 import { withErrorHandler } from "@/lib/middleware/error-handler";
 import { prisma } from "@/lib/prisma";
+import { parseISO } from "date-fns";
 
 /**
  * GET /api/invoices
@@ -14,6 +15,8 @@ async function getInvoicesHandler(req: NextRequest) {
   const orgId = searchParams.get("orgId");
   const branchId = searchParams.get("branchId");
   const status = searchParams.get("status");
+  const startDateParam = searchParams.get("startDate");
+  const endDateParam = searchParams.get("endDate");
   const page = parseInt(searchParams.get("page") || "1");
   const pageSize = parseInt(searchParams.get("pageSize") || "20");
 
@@ -37,6 +40,20 @@ async function getInvoicesHandler(req: NextRequest) {
 
   if (status && status !== "all") {
     where.status = status;
+  }
+
+  // Add date range filtering
+  if (startDateParam || endDateParam) {
+    where.createdAt = {};
+    if (startDateParam) {
+      where.createdAt.gte = parseISO(startDateParam);
+    }
+    if (endDateParam) {
+      const endDate = parseISO(endDateParam);
+      // Include the entire end date (set to end of day)
+      endDate.setHours(23, 59, 59, 999);
+      where.createdAt.lte = endDate;
+    }
   }
 
   // Get total count

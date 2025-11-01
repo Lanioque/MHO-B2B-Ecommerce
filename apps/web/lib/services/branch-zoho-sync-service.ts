@@ -32,7 +32,7 @@ export class BranchZohoSyncService {
         contact_name: branch.name,
         company_name: branch.org.name,
         contact_type: 'customer',
-        currency_code: 'USD', // Default, can be configured per org
+        currency_code: 'AED', // Default, can be configured per org
         billing_address: {
           address: branch.billing.line1,
           street: branch.billing.line1,

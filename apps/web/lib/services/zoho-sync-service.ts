@@ -64,7 +64,7 @@ export class ZohoSyncService {
     });
 
     // Process each item
-    const result = await batchProcessor.process(items, async (item) => {
+    const result = await batchProcessor.process(items, async (item: any) => {
       const productData = mapZohoItemToProduct(item);
       const sku = productData.sku;
 

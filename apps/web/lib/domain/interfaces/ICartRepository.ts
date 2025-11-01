@@ -13,6 +13,7 @@ export type CartWithItems = Cart & {
 
 export interface CartIdentifier {
   orgId: string;
+  branchId?: string;
   userId?: string;
   sessionId?: string;
 }

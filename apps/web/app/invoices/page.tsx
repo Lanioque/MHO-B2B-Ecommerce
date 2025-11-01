@@ -98,7 +98,7 @@ export default function InvoicesListPage() {
       if (statusFilter !== 'all') {
         params.append('status', statusFilter);
       }
-      
+
       if (startDate) {
         params.append('startDate', startOfDay(startDate).toISOString());
       }

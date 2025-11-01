@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { type DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -16,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CalendarIcon } from 'lucide-react';
-import { format, subDays, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface DateRangePickerProps {
@@ -31,30 +32,40 @@ export function DateRangePicker({
   showCustomRange = true,
 }: DateRangePickerProps) {
   const [selectedPeriod, setSelectedPeriod] = useState(value);
-  const [dateRange, setDateRange] = useState<{
-    from: Date | undefined;
-    to: Date | undefined;
-  }>({
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: subDays(new Date(), 30),
     to: new Date(),
   });
-  const [isCustomRange, setIsCustomRange] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const lastRangeRef = useRef<string>('');
+  const onChangeRef = useRef(onChange);
 
-  // Prevent hydration mismatch
+  // Keep onChange ref updated
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  // Only call onChange when range is complete AND different (prevent rerender during selection)
+  useEffect(() => {
+    if (dateRange?.from && dateRange?.to) {
+      const rangeKey = `${dateRange.from.getTime()}-${dateRange.to.getTime()}`;
+      
+      // Only call onChange if this is a new range (prevent infinite loop and rerender)
+      if (lastRangeRef.current !== rangeKey) {
+        lastRangeRef.current = rangeKey;
+        const startDate = startOfDay(dateRange.from);
+        const endDate = endOfDay(dateRange.to);
+        // Use ref to avoid dependency on onChange (prevents rerender cascade)
+        onChangeRef.current('custom', startDate, endDate);
+      }
+    }
+  }, [dateRange?.from?.getTime(), dateRange?.to?.getTime()]);
 
   const handlePeriodChange = (period: string) => {
     if (period === 'custom') {
-      setIsCustomRange(true);
       return;
     }
 
-    setIsCustomRange(false);
     setSelectedPeriod(period);
-    
     const endDate = new Date();
     let startDate: Date;
 
@@ -79,40 +90,16 @@ export function DateRangePicker({
     onChange(period, startDate, endDate);
   };
 
-  const handleDateRangeChange = (range: { from: Date | undefined; to: Date | undefined }) => {
-    setDateRange(range);
-    
-    if (range.from && range.to) {
-      const startDate = startOfDay(range.from);
-      const endDate = endOfDay(range.to);
-      setIsCustomRange(false);
-      setSelectedPeriod('custom');
-      onChange('custom', startDate, endDate);
-    }
-  };
-
   const formatDateRange = () => {
-    if (!dateRange.from) return 'Select date range';
+    if (!dateRange?.from) return 'Select date range';
     if (!dateRange.to) return format(dateRange.from, 'LLL dd, y');
     return `${format(dateRange.from, 'LLL dd, y')} - ${format(dateRange.to, 'LLL dd, y')}`;
   };
 
-  // Prevent hydration mismatch by not rendering Select until mounted
-  if (!mounted) {
-    return (
-      <div className="flex items-center gap-2">
-        <CalendarIcon className="h-4 w-4 text-gray-500" />
-        <div className="w-[180px] h-10 border rounded-md bg-background px-3 py-2 flex items-center text-sm">
-          Loading...
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <CalendarIcon className="h-4 w-4 text-gray-500" />
-      <Select value={isCustomRange ? 'custom' : selectedPeriod} onValueChange={handlePeriodChange}>
+      <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
         <SelectTrigger className="w-[180px]">
           <SelectValue placeholder="Select period" />
         </SelectTrigger>
@@ -132,7 +119,7 @@ export function DateRangePicker({
               variant="outline"
               className={cn(
                 "w-[280px] justify-start text-left font-normal",
-                !dateRange.from && "text-muted-foreground"
+                !dateRange?.from && "text-muted-foreground"
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -142,10 +129,10 @@ export function DateRangePicker({
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="range"
-              defaultMonth={dateRange.from}
-              selected={{ from: dateRange.from, to: dateRange.to }}
-              onSelect={handleDateRangeChange}
-              numberOfMonths={2}
+              defaultMonth={dateRange?.from}
+              selected={dateRange}
+              onSelect={setDateRange}
+              numberOfMonths={1}
             />
           </PopoverContent>
         </Popover>

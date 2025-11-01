@@ -66,6 +66,7 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high' | 'name-asc' | 'name-desc'>('newest');
   const [quotedPrices, setQuotedPrices] = useState<Record<string, number>>({});
   const isFetchingRef = useRef(false);
@@ -88,6 +89,15 @@ export default function ProductsPage() {
         if (response.ok) {
           const data = await response.json();
           setCategories(data.categories || []);
+          
+          // Build counts map from categoriesWithCounts if available
+          if (data.categoriesWithCounts) {
+            const counts: Record<string, number> = {};
+            data.categoriesWithCounts.forEach((item: { name: string; count: number }) => {
+              counts[item.name] = item.count;
+            });
+            setCategoryCounts(counts);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch categories:', err);
@@ -397,19 +407,31 @@ export default function ProductsPage() {
               >
                 All Categories
               </button>
-              {(searchQuery ? allCategories : categories).map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedCategory === category
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+              {(searchQuery ? allCategories : categories).map((category) => {
+                const count = categoryCounts[category];
+                return (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                      selectedCategory === category
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span>{category}</span>
+                    {count !== undefined && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        selectedCategory === category
+                          ? 'bg-white/20 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}

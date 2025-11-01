@@ -22,7 +22,12 @@ declare module "next-auth" {
   interface User {
     id: string;
     email: string;
-    memberships: Array<Membership>;
+    name?: string | null;
+    memberships: Array<{
+      id: string;
+      orgId: string;
+      role: string;
+    }>;
   }
 }
 
@@ -33,13 +38,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials: { email: string; password: string }) {
+      async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
+        
+        const email = credentials.email as string;
+        const password = credentials.password as string;
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
+          where: { email },
           include: {
             memberships: {
               select: {
@@ -56,7 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         const isPasswordValid = await bcrypt.compare(
-          credentials.password as string,
+          password,
           user.password
         );
 

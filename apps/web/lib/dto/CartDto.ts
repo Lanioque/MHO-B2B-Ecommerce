@@ -31,6 +31,7 @@ export interface CartItemResponseDto {
 
 export interface CartResponseDto {
   id: string;
+  branchId?: string | null;
   items: CartItemResponseDto[];
   subtotalCents: number;
   itemCount: number;

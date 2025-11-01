@@ -32,7 +32,10 @@ export class OrganizationRepository implements IOrganizationRepository {
 
   async createMembership(data: CreateMembershipData): Promise<Membership> {
     return this.db.membership.create({
-      data,
+      data: {
+        ...data,
+        role: data.role as any, // Prisma expects Role enum, but interface uses string
+      },
     });
   }
 

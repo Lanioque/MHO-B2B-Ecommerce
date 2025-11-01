@@ -8,6 +8,9 @@ node_modules/
 coverage/
 *.lcov
 .nyc_output
+test-results/
+playwright-report/
+playwright/.cache/
 
 # Next.js
 .next/
@@ -52,6 +55,8 @@ lerna-debug.log*
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+package-lock.json
+.npmrc
 
 # Database
 postgres_data/

@@ -76,7 +76,7 @@ export function ProductBarChart({ data }: ProductBarChartProps) {
               />
               <ChartTooltip
                 content={
-                  <ChartTooltipContent formatter={(value: number) => formatCurrency(value)} />
+                  <ChartTooltipContent formatter={(value: any) => formatCurrency(Number(value))} />
                 }
               />
               <Bar

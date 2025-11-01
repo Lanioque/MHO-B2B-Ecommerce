@@ -18,11 +18,12 @@ const updateProductSchema = z.object({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!product) {
@@ -48,25 +49,35 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!product) {
       throw new NotFoundError("Product not found");
     }
 
-    // Verify access
-    await requireRole(product.orgId, Role.ADMIN);
+    // Get orgId from query params (products are global, so we check user's org access)
+    const orgId = req.nextUrl.searchParams.get('orgId');
+    if (!orgId) {
+      return NextResponse.json(
+        { error: 'Organization ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify access - user must be ADMIN in the organization
+    await requireRole(orgId, Role.ADMIN);
 
     const body = await req.json();
     const validated = updateProductSchema.parse(body);
 
     const updated = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: validated,
     });
 
@@ -74,7 +85,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.issues },
         { status: 400 }
       );
     }
@@ -96,22 +107,32 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!product) {
       throw new NotFoundError("Product not found");
     }
 
-    // Verify access
-    await requireRole(product.orgId, Role.ADMIN);
+    // Get orgId from query params (products are global, so we check user's org access)
+    const orgId = req.nextUrl.searchParams.get('orgId');
+    if (!orgId) {
+      return NextResponse.json(
+        { error: 'Organization ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Verify access - user must be ADMIN in the organization
+    await requireRole(orgId, Role.ADMIN);
 
     await prisma.product.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

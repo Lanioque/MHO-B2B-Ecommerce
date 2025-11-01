@@ -104,7 +104,7 @@ export class OrderRepository implements IOrderRepository {
       orgId: orderData.orgId,
       number: orderData.number,
       totalCents: orderData.totalCents,
-      currency: orderData.currency || 'USD',
+      currency: orderData.currency || 'AED',
       status: orderData.status || 'PENDING',
     };
 

@@ -141,15 +141,15 @@ export function RevenueChart({ data }: SpendingChartProps) {
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis
-                yAxisId="left"
+              <YAxis 
+                yAxisId="left" 
                 tickFormatter={formatCurrency}
                 tick={{ fontSize: 12 }}
                 tickLine={false}
                 axisLine={false}
               />
-              <YAxis
-                yAxisId="right"
+              <YAxis 
+                yAxisId="right" 
                 orientation="right"
                 tick={{ fontSize: 12 }}
                 tickLine={false}
@@ -158,25 +158,21 @@ export function RevenueChart({ data }: SpendingChartProps) {
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    formatter={(value: any, name: string) => {
-                      if (name === 'spending' || name === 'Spent Amount') {
-                        return formatCurrency(value);
-                      }
-                      return value;
-                    }}
-                    labelFormatter={(label) => {
+                formatter={(value: any) => {
+                  return formatCurrency(Number(value));
+                }}
+                labelFormatter={(label) => {
                       const date = parseISO(label as string);
-                      return date.toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
+                  return date.toLocaleDateString('en-US', { 
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long', 
                         day: 'numeric',
-                      });
-                    }}
+                  });
+                }}
                   />
                 }
               />
-              <ChartLegend content={<ChartLegendContent />} />
               <Line
                 yAxisId="left"
                 type="monotone"

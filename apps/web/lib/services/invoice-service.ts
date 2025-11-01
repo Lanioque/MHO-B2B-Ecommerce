@@ -84,7 +84,7 @@ export class InvoiceService {
       where: { id: invoiceId },
       data: {
         pdfUrl: zohoInvoice.pdf_url || zohoInvoice.invoice_url,
-        status: zohoInvoice.status || 'ISSUED',
+        status: (zohoInvoice.status || 'ISSUED') as any,
       },
     });
 

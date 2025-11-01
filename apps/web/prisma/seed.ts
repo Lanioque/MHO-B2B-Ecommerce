@@ -35,7 +35,7 @@ async function main() {
 
   // Create membership
   const membership = await prisma.membership.upsert({
-    where: { userId_orgId: { userId: user.id, orgId: org.id } },
+    where: { userId: user.id },
     update: { role: "OWNER" },
     create: {
       userId: user.id,
@@ -81,13 +81,12 @@ async function main() {
   const products = await Promise.all([
     prisma.product.create({
       data: {
-        orgId: org.id,
         sku: "PROD-001",
         slug: "demo-product-1",
         name: "Demo Product 1",
         description: "This is a demo product",
         priceCents: 1999, // $19.99
-        currency: "USD",
+        currency: "AED",
         vatRate: 0.2,
         stock: 100,
         isVisible: true,
@@ -95,13 +94,12 @@ async function main() {
     }),
     prisma.product.create({
       data: {
-        orgId: org.id,
         sku: "PROD-002",
         slug: "demo-product-2",
         name: "Demo Product 2",
         description: "Another demo product",
         priceCents: 2999, // $29.99
-        currency: "USD",
+        currency: "AED",
         vatRate: 0.2,
         stock: 50,
         isVisible: true,

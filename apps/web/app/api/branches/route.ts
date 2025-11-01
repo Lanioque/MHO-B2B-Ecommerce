@@ -65,7 +65,7 @@ async function createBranchHandler(req: NextRequest) {
   // During onboarding, the session might not have the new membership yet,
   // so we check the database directly if session check fails
   try {
-    await requireRole(validated.orgId, Role.ADMIN);
+  await requireRole(validated.orgId, Role.ADMIN);
   } catch (error) {
     // If session doesn't have membership, check database directly
     // This handles the case where org was just created and session hasn't refreshed

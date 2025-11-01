@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCart } from '@/lib/hooks/use-cart';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { BranchSelector } from '@/components/branch-selector';
 import Link from 'next/link';
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const orgId = searchParams.get('orgId') || '00000000-0000-0000-0000-000000000001';
@@ -232,6 +232,23 @@ export default function CheckoutPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8">
+            <Skeleton className="h-6 w-48 mx-auto mb-4" />
+            <Skeleton className="h-4 w-64 mx-auto" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }
 

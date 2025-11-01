@@ -137,31 +137,33 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
               <p className="text-sm text-gray-500 mt-1">Manage your quotations</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            {isAdmin && (
-              <BranchSelector
-                currentBranchId={selectedBranch}
-                onBranchChange={setSelectedBranch}
-              />
-            )}
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="DRAFT">Draft</SelectItem>
-                <SelectItem value="SENT">Sent</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="REJECTED">Rejected</SelectItem>
-                <SelectItem value="EXPIRED">Expired</SelectItem>
-                <SelectItem value="CONVERTED">Converted</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              New Quotation
-            </Button>
+          <div className="flex flex-col lg:flex-row items-start gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
+              {isAdmin && (
+                <BranchSelector
+                  currentBranchId={selectedBranch}
+                  onBranchChange={setSelectedBranch}
+                />
+              )}
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v)}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="DRAFT">Draft</SelectItem>
+                  <SelectItem value="SENT">Sent</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                  <SelectItem value="EXPIRED">Expired</SelectItem>
+                  <SelectItem value="CONVERTED">Converted</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Quotation
+              </Button>
+            </div>
           </div>
         </div>
       </div>

@@ -6,8 +6,17 @@ import BranchesClient from "./BranchesClient";
 export default async function Page() {
   // Auth check is handled by AuthenticatedLayout in parent layout
   const session = await auth();
-  const sessionHelper = new SessionHelper(session!);
-  const membership = sessionHelper.getMembership()!;
+  
+  if (!session?.user) {
+    redirect('/login');
+  }
+
+  const sessionHelper = new SessionHelper(session);
+  const membership = sessionHelper.getMembership();
+
+  if (!membership) {
+    redirect('/dashboard');
+  }
 
   return (
     <BranchesClient 

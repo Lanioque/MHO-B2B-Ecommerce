@@ -14,7 +14,7 @@ export default async function OnboardingPage({
   if (session?.user) {
     const hasOrganizations = session.user.memberships && session.user.memberships.length > 0;
     if (hasOrganizations) {
-      redirect("/dashboard");
+    redirect("/dashboard");
     }
     // If authenticated but no organizations, allow them to complete onboarding
   }

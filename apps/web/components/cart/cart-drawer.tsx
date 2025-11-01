@@ -78,11 +78,11 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
         {/* Header */}
         <SheetHeader className="p-4 border-b bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-5 h-5" />
-              <SheetTitle className="text-white">Shopping Cart</SheetTitle>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <ShoppingCart className="w-5 h-5 flex-shrink-0" />
+              <SheetTitle className="text-white whitespace-nowrap truncate">Shopping Cart</SheetTitle>
               {cart && cart.itemCount > 0 && (
-                <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full">
+                <span className="bg-white text-blue-600 text-xs font-bold px-2 py-1 rounded-full flex-shrink-0">
                   {cart.itemCount}
                 </span>
               )}
@@ -131,9 +131,9 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
         {cart && cart.items.length > 0 && (
           <div className="border-t bg-gray-50 px-5 py-4 space-y-4">
             {/* Subtotal hidden in quote flow */}
-            <div className="flex items-center justify-between text-lg font-semibold">
-              <span>Total:</span>
-              <span className="text-blue-600">Price on request</span>
+            <div className="flex items-center justify-between text-lg font-semibold gap-2">
+              <span className="whitespace-nowrap">Total:</span>
+              <span className="text-blue-600 whitespace-nowrap truncate">Price on request</span>
             </div>
 
             {/* Actions */}
@@ -146,7 +146,7 @@ export function CartDrawer({ orgId, branchId }: CartDrawerProps) {
                 {requestingQuote ? 'Requesting...' : 'Request a Quote'}
               </Button>
               {quoteId && (
-                <p className="text-xs text-green-600 text-center">Quote requested. ID: {quoteId}</p>
+                <p className="text-xs text-green-600 text-center break-words">Quote requested. ID: {quoteId}</p>
               )}
               <Link href="/cart" onClick={closeDrawer} className="block">
                 <Button variant="outline" className="w-full">

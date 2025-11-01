@@ -104,7 +104,7 @@ export class TelrClient {
     }
 
     // Prepare payment data
-    const paymentData = {
+    const paymentData: Record<string, string> = {
       ivp_method: 'create',
       ivp_store: this.storeId,
       ivp_authkey: this.authKey,

@@ -188,7 +188,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             {managementNavWithActive.map((item) => {
               // Special handling for Products with collapsible categories
               if (item.url === '/products') {
-                const active = item.isActive ?? (pathname === item.url || (item.url !== '/' && pathname?.startsWith(item.url)))
+                const active = item.isActive ?? (pathname === item.url || pathname?.startsWith(item.url))
                 const activeCategory = searchParams?.get('categoryName')
                 const Icon = item.icon
 

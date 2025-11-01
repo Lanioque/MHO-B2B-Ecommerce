@@ -92,7 +92,7 @@ export class QuotationService {
         customerId: data.customerId,
         number,
         totalCents,
-        currency: 'USD',
+        currency: 'AED',
         status: 'DRAFT',
         validUntil: data.validUntil,
         notes: data.notes,
@@ -166,8 +166,8 @@ export class QuotationService {
         where: { id: quotation.id },
         data: { 
           zohoEstimateId: estimateId, 
-          status: 'SENT' 
-        },
+          status: 'SENT'
+        } as any,
       });
     } catch (err) {
       console.warn('[QuotationService] Zoho estimate creation failed:', err);

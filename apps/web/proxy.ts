@@ -145,11 +145,11 @@ export default auth(async (req) => {
       // Add org context to request headers if we found membership
       // If not found, still pass through - let the API route decide
       if (membership) {
-        const response = NextResponse.next();
-        response.headers.set("x-user-id", req.auth.user.id);
-        response.headers.set("x-org-id", orgId);
-        response.headers.set("x-user-role", membership.role);
-        return response;
+      const response = NextResponse.next();
+      response.headers.set("x-user-id", req.auth.user.id);
+      response.headers.set("x-org-id", orgId);
+      response.headers.set("x-user-role", membership.role);
+      return response;
       }
       // If no membership found, still allow request through - API route will handle authorization
     }

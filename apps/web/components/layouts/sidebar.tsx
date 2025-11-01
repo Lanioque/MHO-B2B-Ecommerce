@@ -31,6 +31,7 @@ export function Sidebar() {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [productsOpen, setProductsOpen] = useState(false);
 
   // Initialize from localStorage and set CSS var for content padding
@@ -51,6 +52,15 @@ export function Sidebar() {
         if (response.ok) {
           const data = await response.json();
           setCategories(data.categories || []);
+          
+          // Build counts map from categoriesWithCounts if available
+          if (data.categoriesWithCounts) {
+            const counts: Record<string, number> = {};
+            data.categoriesWithCounts.forEach((item: { name: string; count: number }) => {
+              counts[item.name] = item.count;
+            });
+            setCategoryCounts(counts);
+          }
         }
       } catch (err) {
         console.error('Failed to fetch categories:', err);
@@ -137,6 +147,7 @@ export function Sidebar() {
                             activePath={pathname}
                             collapsed={collapsed}
                             categories={categories}
+                            categoryCounts={categoryCounts}
                             open={productsOpen}
                             onOpenChange={setProductsOpen}
                           />
@@ -205,6 +216,7 @@ function ProductsDropdown({
   activePath, 
   collapsed, 
   categories,
+  categoryCounts,
   open,
   onOpenChange 
 }: { 
@@ -213,6 +225,7 @@ function ProductsDropdown({
   activePath?: string | null; 
   collapsed?: boolean;
   categories: string[];
+  categoryCounts?: Record<string, number>;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -291,16 +304,22 @@ function ProductsDropdown({
                   <div className="h-px bg-gray-200 my-1" />
                   {categories.map((category) => {
                     const categoryActive = activeCategory === category;
+                    const count = categoryCounts?.[category];
                     return (
                       <DropdownMenuItem key={category} asChild>
                         <Link
                           href={`/products?categoryName=${encodeURIComponent(category)}`}
                           className={cn(
-                            'w-full',
+                            'w-full flex items-center justify-between gap-2',
                             categoryActive ? 'bg-blue-50 text-blue-700 font-medium' : ''
                           )}
                         >
-                          {category}
+                          <span className="flex-1">{category}</span>
+                          {count !== undefined && (
+                            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                              {count}
+                            </span>
+                          )}
                         </Link>
                       </DropdownMenuItem>
                     );

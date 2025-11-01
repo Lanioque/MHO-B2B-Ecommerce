@@ -5,13 +5,14 @@
 
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { XCircle } from 'lucide-react';
 
-export default function PaymentDeclinePage() {
+function PaymentDeclineContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
   const tranRef = searchParams.get('tranRef');
@@ -68,6 +69,22 @@ export default function PaymentDeclinePage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function PaymentDeclinePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">Loading...</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+    }>
+      <PaymentDeclineContent />
+    </Suspense>
   );
 }
 

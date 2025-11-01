@@ -23,8 +23,12 @@ export function MetricCard({
 }: MetricCardProps) {
   const formatValue = (val: string | number) => {
     if (typeof val === 'number') {
-      // Format currency
-      if (title.toLowerCase().includes('revenue') || title.toLowerCase().includes('cost')) {
+      const titleLower = title.toLowerCase();
+      // Format currency for any money-related titles
+      const currencyKeywords = ['revenue', 'cost', 'spent', 'amount', 'value', 'price', 'budget', 'payment', 'total'];
+      const isCurrency = currencyKeywords.some(keyword => titleLower.includes(keyword));
+      
+      if (isCurrency) {
         return new Intl.NumberFormat('en-AE', {
           style: 'currency',
           currency: 'AED',

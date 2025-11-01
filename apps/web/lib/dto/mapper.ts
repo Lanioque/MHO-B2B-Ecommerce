@@ -55,6 +55,7 @@ export class CartMapper {
 
     return {
       id: cart.id,
+      branchId: cart.branchId,
       items,
       subtotalCents,
       itemCount,

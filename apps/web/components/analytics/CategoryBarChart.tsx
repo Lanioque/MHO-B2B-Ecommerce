@@ -71,7 +71,7 @@ export function CategoryBarChart({ data }: CategoryBarChartProps) {
               />
               <ChartTooltip
                 content={
-                  <ChartTooltipContent formatter={(value: number) => formatCurrency(value)} />
+                  <ChartTooltipContent formatter={(value: any) => formatCurrency(Number(value))} />
                 }
               />
               <Bar

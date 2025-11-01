@@ -124,7 +124,7 @@ const emptyFormData: BranchFormData = {
   notes: "",
   monthlyBudget: "",
   yearlyBudget: "",
-  budgetCurrency: "USD",
+  budgetCurrency: "AED",
   phone: "",
   email: "",
   website: "",
@@ -212,7 +212,7 @@ export default function BranchesClient({ orgId, userRole, userName, userEmail }:
       notes: branch.notes || "",
       monthlyBudget: branch.monthlyBudget ? (branch.monthlyBudget / 100).toString() : "",
       yearlyBudget: branch.yearlyBudget ? (branch.yearlyBudget / 100).toString() : "",
-      budgetCurrency: branch.budgetCurrency || "USD",
+      budgetCurrency: branch.budgetCurrency || "AED",
       phone: branch.phone || "",
       email: branch.email || "",
       website: branch.website || "",
@@ -619,10 +619,10 @@ export default function BranchesClient({ orgId, userRole, userName, userEmail }:
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="AED">AED</SelectItem>
                         <SelectItem value="USD">USD</SelectItem>
                         <SelectItem value="EUR">EUR</SelectItem>
                         <SelectItem value="GBP">GBP</SelectItem>
-                        <SelectItem value="AED">AED</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -997,10 +997,10 @@ export default function BranchesClient({ orgId, userRole, userName, userEmail }:
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="AED">AED</SelectItem>
                         <SelectItem value="USD">USD</SelectItem>
                         <SelectItem value="EUR">EUR</SelectItem>
                         <SelectItem value="GBP">GBP</SelectItem>
-                        <SelectItem value="AED">AED</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

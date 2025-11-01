@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useCart } from '@/lib/hooks/use-cart';
 import { CartItem } from '@/components/cart/cart-item';
 import { Button } from '@/components/ui/button';
@@ -25,7 +25,7 @@ import { ShoppingBag, ArrowLeft, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
-export default function CartPage() {
+function CartContent() {
   const searchParams = useSearchParams();
   // Default org ID from seed - TODO: Get from auth context or branch selector
   const orgId = searchParams.get('orgId') || '00000000-0000-0000-0000-000000000001';
@@ -267,6 +267,24 @@ export default function CartPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function CartPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="max-w-4xl mx-auto">
+          <Skeleton className="h-12 w-48 mb-4" />
+          <div className="space-y-4">
+            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        </div>
+      </div>
+    }>
+      <CartContent />
+    </Suspense>
   );
 }
 

@@ -66,26 +66,28 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
       // localStorage might be stale, especially after onboarding
       let orgId: string | null = null;
       
-      try {
-        const userResponse = await fetch("/api/me", { credentials: "include" });
-        const userData = await userResponse.json();
-        if (userResponse.ok && userData.user?.memberships?.length > 0) {
-          orgId = userData.user.memberships[0].orgId;
+        try {
+          const userResponse = await fetch("/api/me", { credentials: "include" });
+          const userData = await userResponse.json();
+          if (userResponse.ok && userData.user?.memberships?.length > 0) {
+            orgId = userData.user.memberships[0].orgId;
           // Update localStorage with the current orgId from session
-          localStorage.setItem("currentOrgId", orgId);
-        } else {
+            if (orgId) {
+              localStorage.setItem("currentOrgId", orgId);
+            }
+          } else {
           // Fallback to localStorage if API doesn't have memberships
           orgId = localStorage.getItem("currentOrgId");
-        }
-      } catch (err) {
+          }
+        } catch (err) {
         // Fallback to localStorage if API call fails
         orgId = localStorage.getItem("currentOrgId");
       }
       
       if (!orgId) {
-        setLoading(false);
+          setLoading(false);
         isFetchingRef.current = false;
-        return;
+          return;
       }
 
       const response = await fetch(`/api/branches?orgId=${orgId}`);
@@ -114,7 +116,7 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
       let initialBranchId = currentBranchId || selectedBranch || storedBranchId || "all";
       
       // Validate that the stored/selected branch exists in the fetched branches
-      if (initialBranchId && initialBranchId !== "all" && !data.branches.find(b => b.id === initialBranchId)) {
+      if (initialBranchId && initialBranchId !== "all" && !data.branches.find((b: Branch) => b.id === initialBranchId)) {
         initialBranchId = "all";
       }
       

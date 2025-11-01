@@ -94,23 +94,20 @@ export function StatusPieChart({ data }: StatusPieChartProps) {
               content={
                 <ChartTooltipContent
                   hideLabel
-                  formatter={(value: number, name: string) => {
-                    if (name === 'count') {
-                      return [value, 'Count'];
-                    }
-                    return [value, formatStatus(name)];
+                  formatter={(value: any, name?: any) => {
+                    return [Number(value), name === 'count' ? 'Count' : formatStatus(String(name))];
                   }}
                 />
               }
             />
-            <ChartLegend content={<ChartLegendContent nameKey="status" />} />
+            <ChartLegend content={(props: any) => <ChartLegendContent {...props} nameKey="status" />} />
             <Pie
               data={chartData}
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ status, percent }) =>
-                `${formatStatus(status)}: ${(percent * 100).toFixed(0)}%`
+              label={({ status, percent }: any) =>
+                `${formatStatus(String(status))}: ${(percent * 100).toFixed(0)}%`
               }
               outerRadius={100}
               dataKey="count"

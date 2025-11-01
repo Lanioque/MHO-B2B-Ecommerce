@@ -6,8 +6,17 @@ import AnalyticsClient from './AnalyticsClient';
 export default async function AnalyticsPage() {
   // Auth check is handled by AuthenticatedLayout in parent layout
   const session = await auth();
-  const sessionHelper = new SessionHelper(session!);
-  const membership = sessionHelper.getMembership()!;
+  
+  if (!session?.user) {
+    redirect('/login');
+  }
+
+  const sessionHelper = new SessionHelper(session);
+  const membership = sessionHelper.getMembership();
+
+  if (!membership) {
+    redirect('/dashboard');
+  }
 
   // Check role-based access
   if (membership.role === 'CUSTOMER') {

@@ -313,7 +313,7 @@ export default function QuotationDetailPage() {
               <Button className="w-full" onClick={openPdf}>View PDF</Button>
               <Button variant="outline" className="w-full" disabled={working || quotation.status !== 'SENT'} onClick={approve}>Approve</Button>
               
-              {(quotation.status === 'APPROVED' || quotation.status === 'SENT') && quotation.status !== 'CONVERTED' && (
+              {(quotation.status === 'APPROVED' || quotation.status === 'SENT') && (
                 <>
                   {!showPaymentOptions ? (
                     <Button variant="default" className="w-full" disabled={working} onClick={() => setShowPaymentOptions(true)}>

@@ -81,7 +81,7 @@ export class BranchService {
           notes: data.notes,
           monthlyBudget: data.monthlyBudget,
           yearlyBudget: data.yearlyBudget,
-          budgetCurrency: data.budgetCurrency || 'USD',
+          budgetCurrency: data.budgetCurrency || 'AED',
           phone: data.phone,
           email: data.email,
           website: data.website,

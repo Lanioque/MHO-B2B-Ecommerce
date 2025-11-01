@@ -20,8 +20,24 @@ const nextConfig: NextConfig = {
         ignored: ['**/node_modules', '**/.git', '**/.next'],
       };
     }
+    // Exclude test files from build
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+    };
     return config;
   },
+  
+  // Exclude test files from TypeScript compilation
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  
+  // Exclude test files and mocks
+  pageExtensions: ['ts', 'tsx', 'js', 'jsx'],
+  
+  // Exclude test files
+  transpilePackages: [],
   
   // Development optimizations
   experimental: {

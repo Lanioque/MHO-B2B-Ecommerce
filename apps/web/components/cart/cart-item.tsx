@@ -79,9 +79,9 @@ export function CartItem({ item, onUpdateQuantity, onRemove, compact = false }: 
           </div>
 
           {/* Details */}
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <h4 className="text-sm font-medium truncate">{item.productName}</h4>
-            <p className="text-xs text-gray-500 truncate">SKU: {item.productSku}</p>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium break-words line-clamp-2">{item.productName}</h4>
+            <p className="text-xs text-gray-500 truncate mt-0.5">SKU: {item.productSku}</p>
           </div>
 
           {/* Remove Button */}
@@ -125,9 +125,9 @@ export function CartItem({ item, onUpdateQuantity, onRemove, compact = false }: 
 
       {/* Details */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-lg font-semibold mb-1">{item.productName}</h3>
-        <p className="text-sm text-gray-500 mb-2">SKU: {item.productSku}</p>
-        <p className="text-sm text-gray-600">Pricing available upon final quotation</p>
+        <h3 className="text-lg font-semibold mb-1 break-words line-clamp-2">{item.productName}</h3>
+        <p className="text-sm text-gray-500 mb-2 truncate">SKU: {item.productSku}</p>
+        <p className="text-sm text-gray-600 break-words">Pricing available upon final quotation</p>
         <div className="mt-3">
           <QuantityControls
             quantity={item.quantity}
@@ -151,7 +151,7 @@ export function CartItem({ item, onUpdateQuantity, onRemove, compact = false }: 
           <Trash2 className="h-4 w-4 mr-1" />
           Remove
         </Button>
-        <p className="text-sm text-gray-600 mt-2">Subtotal available upon final quotation</p>
+        <p className="text-sm text-gray-600 mt-2 break-words text-right max-w-[150px] ml-auto">Subtotal available upon final quotation</p>
       </div>
     </div>
   );

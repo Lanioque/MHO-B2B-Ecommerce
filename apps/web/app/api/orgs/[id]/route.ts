@@ -11,10 +11,11 @@ const updateOrgSchema = z.object({
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { orgId } = await getOrgContext(params.id);
+    const { id } = await params;
+    const { orgId } = await getOrgContext(id);
 
     const org = await prisma.organization.findUnique({
       where: { id: orgId },
@@ -27,9 +28,10 @@ export async function GET(
         },
         _count: {
           select: {
-            products: true,
             customers: true,
             orders: true,
+            branches: true,
+            quotations: true,
           },
         },
       },
@@ -58,15 +60,16 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { membership } = await requireRole(params.id, Role.ADMIN);
+    const { id } = await params;
+    const { membership } = await requireRole(id, Role.ADMIN);
     const body = await req.json();
     const validated = updateOrgSchema.parse(body);
 
     const org = await prisma.organization.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         ...validated,
       },
@@ -76,7 +79,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.issues },
         { status: 400 }
       );
     }
@@ -91,13 +94,14 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { membership } = await requireRole(params.id, Role.OWNER);
+    const { id } = await params;
+    const { membership } = await requireRole(id, Role.OWNER);
 
     await prisma.organization.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ success: true });

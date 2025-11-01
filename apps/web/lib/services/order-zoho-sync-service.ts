@@ -5,7 +5,8 @@
 
 import { prisma } from '@/lib/prisma';
 import { getZohoClient, ZohoError } from '@/lib/clients/zoho-client';
-import { getOrderRepository, IOrderRepository } from '@/lib/repositories/order-repository';
+import { getOrderRepository } from '@/lib/repositories/order-repository';
+import { IOrderRepository } from '@/lib/domain/interfaces/IOrderRepository';
 import { ZohoSalesOrder, ZohoInvoice } from '@/lib/domain/interfaces/IZohoClient';
 import { getBranchZohoSyncService } from './branch-zoho-sync-service';
 
