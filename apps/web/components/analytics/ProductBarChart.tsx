@@ -1,7 +1,13 @@
 'use client';
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
 
 interface ProductBreakdown {
   productId: string;
@@ -29,6 +35,13 @@ export function ProductBarChart({ data }: ProductBarChartProps) {
   // Limit to top 10 products
   const displayData = data.slice(0, 10);
 
+  const chartConfig = {
+    spending: {
+      label: 'Spent Amount',
+      color: 'hsl(var(--chart-2))',
+    },
+  } satisfies ChartConfig;
+
   return (
     <Card>
       <CardHeader>
@@ -41,25 +54,38 @@ export function ProductBarChart({ data }: ProductBarChartProps) {
             No product data available
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={400}>
+          <ChartContainer config={chartConfig} className="h-[400px] w-full">
             <BarChart
               data={displayData}
               margin={{ top: 20, right: 30, left: 20, bottom: 80 }}
             >
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="productName"
                 angle={-45}
                 textAnchor="end"
                 height={120}
                 tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
               />
-              <YAxis tickFormatter={formatCurrency} />
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
-              <Legend />
-              <Bar dataKey="spending" fill="#10b981" name="Spent Amount" />
+              <YAxis
+                tickFormatter={formatCurrency}
+                tickLine={false}
+                axisLine={false}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent formatter={(value: number) => formatCurrency(value)} />
+                }
+              />
+              <Bar
+                dataKey="spending"
+                fill="var(--color-spending)"
+                radius={4}
+              />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         )}
       </CardContent>
     </Card>

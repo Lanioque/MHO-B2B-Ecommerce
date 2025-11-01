@@ -82,6 +82,9 @@ export default function OnboardingForm({ email }: OnboardingFormProps) {
         setError(data.error || "Failed to create organization");
       } else {
         setOrgId(data.org.id);
+        // Note: The session won't automatically refresh with the new membership,
+        // but the branches API has a database fallback to check membership directly
+        // when the session doesn't have it yet. This handles the onboarding flow.
         setCurrentStep(2);
       }
     } catch (error) {
@@ -172,9 +175,10 @@ export default function OnboardingForm({ email }: OnboardingFormProps) {
   };
 
   const handleComplete = async () => {
-    // Force a complete logout and redirect to login
-    // This ensures the session is completely refreshed with new membership data
-    window.location.href = "/api/auth/signout?callbackUrl=/login?callbackUrl=/dashboard";
+    // Refresh the session to get the new membership data, then redirect to dashboard
+    // The session refresh happens on the server when we navigate
+    router.push('/dashboard');
+    router.refresh();
   };
 
   return (

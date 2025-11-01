@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,8 +42,29 @@ export default function RegisterForm() {
       if (!response.ok) {
         setError(data.error || "Registration failed");
       } else {
-        // Redirect to onboarding
-        router.push("/onboarding?email=" + encodeURIComponent(email));
+        // Automatically sign in the user after registration
+        try {
+          const signInResult = await signIn("credentials", {
+            email,
+            password,
+            redirect: false,
+          });
+
+          if (signInResult?.error) {
+            // If auto-login fails, still redirect to onboarding
+            // User can manually log in if needed
+            console.warn("Auto-login failed after registration:", signInResult.error);
+            router.push("/onboarding?email=" + encodeURIComponent(email));
+          } else {
+            // Successfully logged in, redirect to onboarding
+            router.push("/onboarding");
+            router.refresh();
+          }
+        } catch (signInError) {
+          // If signIn throws an error, still redirect to onboarding
+          console.error("Error signing in after registration:", signInError);
+          router.push("/onboarding?email=" + encodeURIComponent(email));
+        }
       }
     } catch (error) {
       setError("An error occurred. Please try again.");

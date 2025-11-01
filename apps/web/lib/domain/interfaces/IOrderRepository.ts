@@ -83,6 +83,11 @@ export interface IOrderRepository {
   findByNumber(number: string): Promise<OrderWithItems | null>;
 
   /**
+   * Find order by Telr transaction reference
+   */
+  findByTelrTranRef(tranRef: string): Promise<OrderWithItems | null>;
+
+  /**
    * Create a new order with items
    */
   create(data: CreateOrderData): Promise<OrderWithItems>;

@@ -250,7 +250,9 @@ export default function QuotationsClient({ orgId, userRole }: QuotationsClientPr
                             : 'N/A'}
                         </td>
                         <td className="py-3 px-4 text-sm text-right font-medium">
-                          {formatCurrency(quotation.totalCents)}
+                          {quotation.status === 'APPROVED' || quotation.status === 'CONVERTED' 
+                            ? formatCurrency(quotation.totalCents)
+                            : <span className="text-gray-500 italic">Pending</span>}
                         </td>
                         <td className="py-3 px-4 text-sm text-center">
                           {quotation.validUntil

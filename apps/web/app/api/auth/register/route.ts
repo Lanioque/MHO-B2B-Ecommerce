@@ -5,11 +5,13 @@ import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8).regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-    message: "Password must contain at least 8 characters with uppercase, lowercase, and number",
-  }),
-  name: z.string().optional(),
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string()
+    .min(8, { message: "Password must be at least 8 characters long" })
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+      message: "Password must contain at least one uppercase letter, one lowercase letter, and one number",
+    }),
+  name: z.string().optional().transform((val) => val && val.trim() !== "" ? val.trim() : undefined),
 });
 
 /**

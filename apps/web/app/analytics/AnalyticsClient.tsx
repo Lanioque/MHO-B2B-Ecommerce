@@ -55,8 +55,31 @@ interface AnalyticsData {
     orders: number;
     percentage: number;
   }>;
-  recentOrders: any[];
-  recentQuotations: any[];
+  recentOrders: Array<{
+    id: string;
+    number: string;
+    totalCents: number;
+    status: string;
+    createdAt: Date;
+    customer?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      email: string;
+    } | null;
+  }>;
+  recentQuotations: Array<{
+    id: string;
+    number: string;
+    totalCents: number;
+    status: string;
+    validUntil?: Date | null;
+    createdAt: Date;
+    customer?: {
+      firstName?: string | null;
+      lastName?: string | null;
+      email: string;
+    } | null;
+  }>;
   previousPeriodSpending?: number;
 }
 
@@ -68,8 +91,21 @@ export default function AnalyticsClient({
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [branchAnalytics, setBranchAnalytics] = useState<Record<string, any>>({});
+  const [branches, setBranches] = useState<Array<{
+    id: string;
+    name: string;
+    status?: string;
+    budgetCurrency?: string;
+    yearlyBudget?: number | null;
+    employeeCount?: number | null;
+    managerName?: string | null;
+    billing?: {
+      line1: string;
+      city: string;
+      country: string;
+    };
+  }>>([]);
+  const [branchAnalytics, setBranchAnalytics] = useState<Record<string, AnalyticsData>>({});
   const [period, setPeriod] = useState('30');
   const [startDate, setStartDate] = useState(subDays(new Date(), 30));
   const [endDate, setEndDate] = useState(new Date());
@@ -180,8 +216,9 @@ export default function AnalyticsClient({
     if (isAdmin) {
       fetchBranches();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, period, startDate, endDate, selectedBranch]);
+    // Note: fetchBranches is already memoized with its dependencies, but we include
+    // period, startDate, endDate, selectedBranch here to trigger re-fetch when filters change
+  }, [isAdmin, fetchBranches, period, startDate, endDate, selectedBranch]);
 
   const handlePeriodChange = (
     newPeriod: string,

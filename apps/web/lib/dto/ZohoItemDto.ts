@@ -79,10 +79,10 @@ export function mapZohoItemToProduct(item: ZohoItem): CreateProductData & { [key
     taxCategoryName: item.tax_category_name || null,
     
     // Inventory
-    trackInventory: item.track_inventory || false,
-    canBeSold: item.can_be_sold || true,
-    canBePurchased: item.can_be_purchased || true,
-    isReturnable: item.is_returnable || true,
+    trackInventory: item.track_inventory ?? false,
+    canBeSold: item.can_be_sold ?? true,
+    canBePurchased: item.can_be_purchased ?? true,
+    isReturnable: item.is_returnable ?? true,
     trackBatchNumber: item.track_batch_number || false,
     isStorageLocationEnabled: item.is_storage_location_enabled || false,
     

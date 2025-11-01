@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ interface PaginatedResponse {
 }
 
 export default function ProductsPage() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<PaginatedResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +70,15 @@ export default function ProductsPage() {
   const [quotedPrices, setQuotedPrices] = useState<Record<string, number>>({});
   const isFetchingRef = useRef(false);
   const isInitialLoadRef = useRef(true);
+  const prevCategoryRef = useRef<string | null>(null);
+
+  // Read category from URL params on mount and when URL changes
+  useEffect(() => {
+    const categoryFromUrl = searchParams?.get('categoryName');
+    if (categoryFromUrl) {
+      setSelectedCategory(categoryFromUrl);
+    }
+  }, [searchParams]);
 
   // Fetch all categories on mount
   useEffect(() => {
@@ -189,6 +200,18 @@ export default function ProductsPage() {
     }
   };
 
+  // Reset page to 1 when category/search/sort changes (but not when just page changes)
+  useEffect(() => {
+    const categoryChanged = prevCategoryRef.current !== selectedCategory;
+    if (categoryChanged) {
+      prevCategoryRef.current = selectedCategory;
+      if (page !== 1) {
+        setPage(1);
+        return; // Don't fetch yet, let the page change trigger the fetch
+      }
+    }
+  }, [selectedCategory]);
+
   // Fetch products when search/filter/sort/page changes
   useEffect(() => {
     if (!orgId) return;
@@ -196,13 +219,11 @@ export default function ProductsPage() {
     // On initial load, mark that initial load is complete after first fetch
     const isInitial = isInitialLoadRef.current;
     
-    // Reset to page 1 when search/category/sort changes (not when just page changes)
-    const hasSearchOrFilter = searchQuery && searchQuery.trim() !== "";
-    if (hasSearchOrFilter || selectedCategory || sortBy !== 'newest') {
-      if (page !== 1) {
-        setPage(1);
-        return; // Return early, let the effect run again with page=1
-      }
+    // Reset to page 1 when search changes (category reset is handled separately above)
+    const hasSearch = searchQuery && searchQuery.trim() !== "";
+    if (hasSearch && page !== 1) {
+      setPage(1);
+      return; // Return early, let the effect run again with page=1
     }
 
     fetchProducts(page, searchQuery || null, selectedCategory, sortBy);

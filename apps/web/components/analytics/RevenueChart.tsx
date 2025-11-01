@@ -1,7 +1,15 @@
 'use client';
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart';
 import { differenceInDays, parseISO } from 'date-fns';
 
 interface SpendingDataPoint {
@@ -88,6 +96,17 @@ export function RevenueChart({ data }: SpendingChartProps) {
     }).format(value);
   };
 
+  const chartConfig = {
+    spending: {
+      label: 'Spent Amount',
+      color: 'hsl(var(--chart-1))',
+    },
+    orders: {
+      label: 'Orders',
+      color: 'hsl(var(--chart-2))',
+    },
+  } satisfies ChartConfig;
+
   return (
     <Card>
       <CardHeader>
@@ -100,9 +119,17 @@ export function RevenueChart({ data }: SpendingChartProps) {
             No spending data available for this period
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
+          <ChartContainer config={chartConfig} className="h-[300px] w-full">
+            <LineChart
+              data={data}
+              margin={{
+                top: 20,
+                right: 30,
+                left: 20,
+                bottom: dateRange > 7 ? 60 : 20,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
                 dataKey="date"
                 tickFormatter={formatDate}
@@ -111,55 +138,63 @@ export function RevenueChart({ data }: SpendingChartProps) {
                 height={dateRange > 7 ? 80 : 40}
                 interval={calculateTickInterval()}
                 tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
               />
-              <YAxis 
-                yAxisId="left" 
+              <YAxis
+                yAxisId="left"
                 tickFormatter={formatCurrency}
                 tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
               />
-              <YAxis 
-                yAxisId="right" 
+              <YAxis
+                yAxisId="right"
                 orientation="right"
                 tick={{ fontSize: 12 }}
+                tickLine={false}
+                axisLine={false}
               />
-              <Tooltip
-                formatter={(value: any, name: string) => {
-                  if (name === 'spending' || name === 'Spent Amount') {
-                    return formatCurrency(value);
-                  }
-                  return value;
-                }}
-                labelFormatter={(label) => {
-                  const date = parseISO(label);
-                  return date.toLocaleDateString('en-US', { 
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long', 
-                    day: 'numeric' 
-                  });
-                }}
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value: any, name: string) => {
+                      if (name === 'spending' || name === 'Spent Amount') {
+                        return formatCurrency(value);
+                      }
+                      return value;
+                    }}
+                    labelFormatter={(label) => {
+                      const date = parseISO(label as string);
+                      return date.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      });
+                    }}
+                  />
+                }
               />
-              <Legend />
+              <ChartLegend content={<ChartLegendContent />} />
               <Line
                 yAxisId="left"
                 type="monotone"
                 dataKey="spending"
-                stroke="#2563eb"
+                stroke="var(--color-spending)"
                 strokeWidth={2}
-                name="Spent Amount"
                 dot={{ r: dateRange <= 7 ? 4 : 3 }}
               />
               <Line
                 yAxisId="right"
                 type="monotone"
                 dataKey="orders"
-                stroke="#10b981"
+                stroke="var(--color-orders)"
                 strokeWidth={2}
-                name="Orders"
                 dot={{ r: dateRange <= 7 ? 4 : 3 }}
               />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         )}
       </CardContent>
     </Card>

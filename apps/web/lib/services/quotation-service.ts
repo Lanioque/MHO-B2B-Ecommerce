@@ -162,21 +162,13 @@ export class QuotationService {
 
       const zohoEstimate = await zoho.createEstimate(data.orgId, estimatePayload);
       const estimateId = zohoEstimate.estimate_id || zohoEstimate.estimate_number || null;
-      try {
-        await prisma.quotation.update({
-          where: { id: quotation.id },
-          data: { /* @ts-ignore: field may not exist in older client */ zohoEstimateId: estimateId, status: 'SENT' },
-        });
-      } catch (saveErr) {
-        // Prisma client might be outdated (missing zohoEstimateId). Fallback to status only and store id in notes.
-        await prisma.quotation.update({
-          where: { id: quotation.id },
-          data: {
-            status: 'SENT',
-            notes: estimateId ? `${quotation.notes ? quotation.notes + '\n' : ''}ZohoEstimateId: ${estimateId}` : quotation.notes || undefined,
-          },
-        });
-      }
+      await prisma.quotation.update({
+        where: { id: quotation.id },
+        data: { 
+          zohoEstimateId: estimateId, 
+          status: 'SENT' 
+        },
+      });
     } catch (err) {
       console.warn('[QuotationService] Zoho estimate creation failed:', err);
     }

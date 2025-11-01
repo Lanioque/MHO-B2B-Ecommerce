@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -69,6 +69,9 @@ export default function OrdersListPage() {
     totalPages: 0,
   });
 
+  // Ref to prevent duplicate fetches in React StrictMode
+  const isFetchingRef = useRef(false);
+
   // Get organization ID from user's first membership (memoized)
   const orgId = useMemo(() => user?.memberships?.[0]?.orgId, [user?.memberships]);
 
@@ -78,6 +81,10 @@ export default function OrdersListPage() {
       setLoading(false);
       return;
     }
+
+    // Prevent duplicate fetches
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
 
     try {
       setLoading(true);
@@ -114,12 +121,16 @@ export default function OrdersListPage() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   }, [orgId, selectedBranchId, statusFilter, pagination.page, pagination.pageSize]);
 
   // Fetch orders on mount and when dependencies change
   useEffect(() => {
+    // Prevent duplicate fetches in React StrictMode
+    if (isFetchingRef.current) return;
     fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchOrders]);
 
   const formatCurrency = (cents: number, currency: string = 'AED') => {

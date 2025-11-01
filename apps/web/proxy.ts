@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-export default auth((req) => {
+export default auth(async (req) => {
   const { pathname } = req.nextUrl;
   const isAuthenticated = !!req.auth?.user;
 
@@ -14,11 +14,31 @@ export default auth((req) => {
     userId: req.auth?.user?.id,
   });
 
-  // Redirect authenticated users away from auth pages
-  const authPages = ['/login', '/register', '/onboarding'];
-  if (isAuthenticated && authPages.some(page => pathname.startsWith(page))) {
+  // Redirect authenticated users away from auth pages (except onboarding if they don't have orgs)
+  if (isAuthenticated && pathname.startsWith('/login')) {
     console.log('[Proxy] Redirecting authenticated user to dashboard from:', pathname);
     return NextResponse.redirect(new URL('/dashboard', req.url));
+  }
+  
+  if (isAuthenticated && pathname.startsWith('/register')) {
+    // Check if user has organizations
+    const hasOrgs = req.auth?.user?.memberships && req.auth.user.memberships.length > 0;
+    if (hasOrgs) {
+      console.log('[Proxy] Redirecting authenticated user to dashboard from:', pathname);
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+    // Allow authenticated users without orgs to register (edge case)
+  }
+  
+  // Allow authenticated users without organizations to access onboarding
+  if (isAuthenticated && pathname.startsWith('/onboarding')) {
+    const hasOrgs = req.auth?.user?.memberships && req.auth.user.memberships.length > 0;
+    if (hasOrgs) {
+      // If they have orgs, redirect to dashboard
+      console.log('[Proxy] Redirecting user with orgs from onboarding to dashboard');
+      return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+    // If no orgs, allow them to stay on onboarding
   }
 
   // Public routes - allow without authentication
@@ -51,10 +71,16 @@ export default auth((req) => {
   }
 
   // Protected routes - require authentication
+  // For API routes, return JSON error instead of redirect
   if (!req.auth) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+    // Redirect to home page instead of login for non-API routes
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   // Check if user has completed onboarding (has at least one organization)
@@ -74,28 +100,58 @@ export default auth((req) => {
   }
 
   // API routes - add org context to headers for multi-tenant
+  // Note: We allow the request to pass through even if membership isn't in session
+  // The individual API routes will handle authorization with their own fallback logic
   if (pathname.startsWith("/api/")) {
     const orgId = req.headers.get("x-org-id") || req.nextUrl.searchParams.get("orgId");
     
-    if (orgId) {
-      // Validate that user has access to this org
-      const membership = req.auth.user?.memberships.find(
+    if (orgId && req.auth?.user?.id) {
+      // Try to get membership from session first
+      let membership = req.auth.user?.memberships?.find(
         (m) => m.orgId === orgId
       );
 
+      // If no membership in session, try database (but don't block if it fails)
+      // The API route will handle the final authorization check
       if (!membership) {
-        return NextResponse.json(
-          { error: "Access denied to organization" },
-          { status: 403 }
-        );
+        try {
+          const { prisma } = await import('@/lib/prisma');
+          const dbMembership = await prisma.membership.findFirst({
+            where: {
+              userId: req.auth.user.id,
+              orgId: orgId,
+            },
+            select: {
+              id: true,
+              orgId: true,
+              role: true,
+            },
+          });
+          
+          if (dbMembership) {
+            // Convert database membership to match session membership structure
+            membership = {
+              id: dbMembership.id,
+              orgId: dbMembership.orgId,
+              role: dbMembership.role,
+            };
+          }
+        } catch (error) {
+          // If database check fails, continue anyway - let the API route handle authorization
+          console.warn('[Proxy] Could not verify membership in middleware, API route will handle:', error);
+        }
       }
 
-      // Add org context to request headers
-      const response = NextResponse.next();
-      response.headers.set("x-user-id", req.auth.user.id);
-      response.headers.set("x-org-id", orgId);
-      response.headers.set("x-user-role", membership.role);
-      return response;
+      // Add org context to request headers if we found membership
+      // If not found, still pass through - let the API route decide
+      if (membership) {
+        const response = NextResponse.next();
+        response.headers.set("x-user-id", req.auth.user.id);
+        response.headers.set("x-org-id", orgId);
+        response.headers.set("x-user-role", membership.role);
+        return response;
+      }
+      // If no membership found, still allow request through - API route will handle authorization
     }
   }
 

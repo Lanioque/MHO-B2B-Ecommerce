@@ -17,7 +17,6 @@ import {
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
-import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
@@ -94,22 +93,41 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [categories, setCategories] = React.useState<string[]>([])
+  const [categoryCounts, setCategoryCounts] = React.useState<Record<string, number>>({})
   const [productsOpen, setProductsOpen] = React.useState(false)
+  const isFetchingCategoriesRef = React.useRef(false)
 
-  // Fetch categories
+  // Fetch categories with counts
   React.useEffect(() => {
+    // Prevent duplicate fetches in React StrictMode
+    // Also skip if we already have categories loaded
+    if (isFetchingCategoriesRef.current || categories.length > 0) return;
+    
     const fetchCategories = async () => {
+      isFetchingCategoriesRef.current = true;
       try {
         const response = await fetch('/api/products/categories')
         if (response.ok) {
           const data = await response.json()
           setCategories(data.categories || [])
+          
+          // Build counts map from categoriesWithCounts if available
+          if (data.categoriesWithCounts) {
+            const counts: Record<string, number> = {}
+            data.categoriesWithCounts.forEach((item: { name: string; count: number }) => {
+              counts[item.name] = item.count
+            })
+            setCategoryCounts(counts)
+          }
         }
       } catch (err) {
         console.error('Failed to fetch categories:', err)
+      } finally {
+        isFetchingCategoriesRef.current = false;
       }
     }
     fetchCategories()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Auto-open products dropdown if on products page
@@ -185,27 +203,35 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={active && !activeCategory}>
-                              <Link href="/products">
-                                <span>All Products</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                          {categories.map((category) => {
-                            const categoryActive = activeCategory === category
-                            return (
-                              <SidebarMenuSubItem key={category}>
-                                <SidebarMenuSubButton asChild isActive={categoryActive}>
-                                  <Link href={`/products?categoryName=${encodeURIComponent(category)}`}>
-                                    <span>{category}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            )
-                          })}
-                        </SidebarMenuSub>
+                        <div className="max-h-[50vh] overflow-y-auto scrollbar-hide">
+                          <SidebarMenuSub>
+                            <SidebarMenuSubItem>
+                              <SidebarMenuSubButton asChild isActive={active && !activeCategory}>
+                                <Link href="/products">
+                                  <span>All Products</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                            {categories.map((category) => {
+                              const categoryActive = activeCategory === category
+                              const count = categoryCounts[category]
+                              return (
+                                <SidebarMenuSubItem key={category}>
+                                  <SidebarMenuSubButton asChild isActive={categoryActive} className="min-h-7 h-auto py-2">
+                                    <Link href={`/products?categoryName=${encodeURIComponent(category)}`} className="flex items-center justify-between w-full gap-2">
+                                      <span className="flex-1 break-words leading-tight">{category}</span>
+                                      {count !== undefined && (
+                                        <span className="ml-auto flex-shrink-0 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                          {count}
+                                        </span>
+                                      )}
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              )
+                            })}
+                          </SidebarMenuSub>
+                        </div>
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>

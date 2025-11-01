@@ -41,6 +41,33 @@ export interface OrdersByStatus {
   spending: number;
 }
 
+export interface RecentOrder {
+  id: string;
+  number: string;
+  totalCents: number;
+  status: string;
+  createdAt: Date;
+  customer?: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
+}
+
+export interface RecentQuotation {
+  id: string;
+  number: string;
+  totalCents: number;
+  status: string;
+  validUntil?: Date | null;
+  createdAt: Date;
+  customer?: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  } | null;
+}
+
 export interface OrganizationAnalytics {
   totalSpending: number;
   totalOrders: number;
@@ -51,8 +78,8 @@ export interface OrganizationAnalytics {
   ordersByStatus: OrdersByStatus[];
   topProducts: ProductBreakdown[];
   categoryBreakdown: CategoryBreakdown[];
-  recentOrders: any[];
-  recentQuotations: any[];
+  recentOrders: RecentOrder[];
+  recentQuotations: RecentQuotation[];
   previousPeriodSpending?: number;
 }
 
@@ -483,7 +510,7 @@ export class AnalyticsService {
   /**
    * Get recent orders
    */
-  private async getRecentOrders(whereClause: any, limit: number) {
+  private async getRecentOrders(whereClause: any, limit: number): Promise<RecentOrder[]> {
     return prisma.order.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
@@ -506,7 +533,7 @@ export class AnalyticsService {
   private async getRecentQuotations(
     whereClause: any,
     limit: number
-  ) {
+  ): Promise<RecentQuotation[]> {
     const { startDate, endDate, orgId, branchId, ...rest } = whereClause;
     
     // Check if quotation model exists in Prisma client (in case migration hasn't run yet)

@@ -7,14 +7,17 @@ export default async function OnboardingPage({
 }: {
   searchParams: Promise<{ email?: string }>;
 }) {
-  // Check if user is already authenticated
   const session = await auth();
-  
-  if (session?.user) {
-    // User is already logged in, redirect to dashboard
-    redirect("/dashboard");
-  }
   const { email } = await searchParams;
+  
+  // If user is authenticated and has organizations, redirect to dashboard
+  if (session?.user) {
+    const hasOrganizations = session.user.memberships && session.user.memberships.length > 0;
+    if (hasOrganizations) {
+      redirect("/dashboard");
+    }
+    // If authenticated but no organizations, allow them to complete onboarding
+  }
 
-  return <OnboardingForm email={email} />;
+  return <OnboardingForm email={email || session?.user?.email} />;
 }

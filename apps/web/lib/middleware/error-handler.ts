@@ -17,9 +17,13 @@ export interface ErrorResponse {
 export function handleError(error: unknown): NextResponse<ErrorResponse> {
   // Zod validation errors
   if (error instanceof ZodError) {
+    // Extract the first error message for user-friendly display
+    const firstError = error.errors[0];
+    const errorMessage = firstError?.message || 'Validation failed';
+    
     return NextResponse.json(
       {
-        error: 'Validation failed',
+        error: errorMessage,
         code: 'VALIDATION_ERROR',
         details: error.errors,
       },

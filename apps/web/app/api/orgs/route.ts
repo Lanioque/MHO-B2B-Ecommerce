@@ -6,11 +6,14 @@ import { validateRequestBody } from "@/lib/middleware/validation";
 import { z } from "zod";
 
 const createOrgSchema = z.object({
-  name: z.string().min(1),
-  vatNumber: z.string().optional(),
+  name: z.string().min(1, { message: "Organization name is required" }),
+  vatNumber: z.string().optional().or(z.literal("")),
   employeeCount: z.number().int().positive().optional().nullable(),
   supportedDietTypes: z.array(z.string()).optional(),
-});
+}).transform((data) => ({
+  ...data,
+  vatNumber: data.vatNumber && data.vatNumber.trim() !== "" ? data.vatNumber.trim() : undefined,
+}));
 
 /**
  * POST /api/orgs

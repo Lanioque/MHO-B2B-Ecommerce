@@ -26,12 +26,15 @@ export async function validateQueryParams<T>(
  * Parse pagination parameters from query string
  */
 export function parsePaginationParams(req: NextRequest) {
-  const page = parseInt(req.nextUrl.searchParams.get('page') || '1');
-  const pageSize = parseInt(req.nextUrl.searchParams.get('pageSize') || '20');
+  const pageParam = req.nextUrl.searchParams.get('page') || '1';
+  const pageSizeParam = req.nextUrl.searchParams.get('pageSize') || '20';
+  
+  const page = parseInt(pageParam, 10);
+  const pageSize = parseInt(pageSizeParam, 10);
 
   return {
-    page: Math.max(1, page),
-    pageSize: Math.min(100, Math.max(1, pageSize)),
+    page: isNaN(page) ? 1 : Math.max(1, page),
+    pageSize: isNaN(pageSize) ? 20 : Math.min(100, Math.max(1, pageSize)),
   };
 }
 

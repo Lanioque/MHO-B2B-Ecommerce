@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Select,
   SelectContent,
@@ -22,6 +22,7 @@ interface BranchSelectorProps {
 export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelectorProps) {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
+  const isFetchingRef = useRef(false);
   
   // Initialize from localStorage or prop
   const getInitialBranch = () => {
@@ -35,7 +36,12 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
   const [selectedBranch, setSelectedBranch] = useState<string>(getInitialBranch());
 
   useEffect(() => {
+    // Prevent duplicate fetches in React StrictMode and concurrent requests
+    // Also skip if we already have branches loaded (to prevent re-fetch on remount)
+    if (isFetchingRef.current || branches.length > 0) return;
+    
     fetchBranches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
   // Sync with localStorage changes
@@ -49,26 +55,37 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
   }, []);
 
   const fetchBranches = async () => {
+    // Prevent concurrent fetches
+    if (isFetchingRef.current) return;
+    
+    isFetchingRef.current = true;
+    setLoading(true);
+    
     try {
-      // First try to get orgId from localStorage
-      let orgId = localStorage.getItem("currentOrgId");
+      // Always fetch user data from API to get the current session's orgId
+      // localStorage might be stale, especially after onboarding
+      let orgId: string | null = null;
       
-      // If not in localStorage, fetch from API
-      if (!orgId) {
-        try {
-          const userResponse = await fetch("/api/me", { credentials: "include" });
-          const userData = await userResponse.json();
-          if (userResponse.ok && userData.user?.memberships?.length > 0) {
-            orgId = userData.user.memberships[0].orgId;
-            localStorage.setItem("currentOrgId", orgId);
-          } else {
-            setLoading(false);
-            return;
-          }
-        } catch (err) {
-          setLoading(false);
-          return;
+      try {
+        const userResponse = await fetch("/api/me", { credentials: "include" });
+        const userData = await userResponse.json();
+        if (userResponse.ok && userData.user?.memberships?.length > 0) {
+          orgId = userData.user.memberships[0].orgId;
+          // Update localStorage with the current orgId from session
+          localStorage.setItem("currentOrgId", orgId);
+        } else {
+          // Fallback to localStorage if API doesn't have memberships
+          orgId = localStorage.getItem("currentOrgId");
         }
+      } catch (err) {
+        // Fallback to localStorage if API call fails
+        orgId = localStorage.getItem("currentOrgId");
+      }
+      
+      if (!orgId) {
+        setLoading(false);
+        isFetchingRef.current = false;
+        return;
       }
 
       const response = await fetch(`/api/branches?orgId=${orgId}`);
@@ -115,8 +132,10 @@ export function BranchSelector({ currentBranchId, onBranchChange }: BranchSelect
       }
     } catch (error) {
       console.error("Error fetching branches:", error);
+      setBranches([]);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 

@@ -6,7 +6,8 @@
 import { OrganizationAnalytics } from './analytics-service';
 import Papa from 'papaparse';
 import jsPDF from 'jspdf';
-// @ts-ignore - jspdf-autotable doesn't have type definitions
+// @ts-ignore - jspdf-autotable extends jsPDF but doesn't have TypeScript definitions
+// The autoTable method is added to jsPDF instances at runtime
 import 'jspdf-autotable';
 
 export class ExportService {

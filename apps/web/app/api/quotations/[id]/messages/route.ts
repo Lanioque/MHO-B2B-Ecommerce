@@ -18,7 +18,8 @@ export async function GET(
     // Try to fetch threaded messages from QuotationMessage if available
     const { id } = await params;
     try {
-      // @ts-ignore model may not exist until migration
+      // @ts-ignore - QuotationMessage model may not exist in Prisma schema until migration runs
+      // This is a graceful fallback - if model doesn't exist, we use quotation.notes instead
       const messages = await (prisma as any).quotationMessage.findMany({
         where: { quotationId: id },
         orderBy: { createdAt: 'asc' },
@@ -55,7 +56,8 @@ export async function POST(
 
     const author = 'CUSTOMER';
     try {
-      // @ts-ignore model may not exist until migration
+      // @ts-ignore - QuotationMessage model may not exist in Prisma schema until migration runs
+      // This allows the feature to work before the migration is applied
       const message = await (prisma as any).quotationMessage.create({
         data: { quotationId: id, author, message: content },
       });

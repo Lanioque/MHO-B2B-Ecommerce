@@ -74,13 +74,37 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Initial sign-in: populate token with user data
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.memberships = user.memberships;
       }
+      
+      // On every request, refresh memberships from database
+      // This ensures the session always has the latest membership data
+      // Important for onboarding flow where org is created during session
+      if (token.id) {
+        const userWithMemberships = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          include: {
+            memberships: {
+              select: {
+                id: true,
+                orgId: true,
+                role: true,
+              },
+            },
+          },
+        });
+        
+        if (userWithMemberships) {
+          token.memberships = userWithMemberships.memberships;
+        }
+      }
+      
       return token;
     },
     async session({ session, token }) {

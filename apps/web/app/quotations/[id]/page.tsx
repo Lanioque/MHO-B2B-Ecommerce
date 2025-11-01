@@ -41,6 +41,10 @@ export default function QuotationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
+  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -82,6 +86,47 @@ export default function QuotationDetailPage() {
     } catch (e) {
       console.error(e);
     } finally {
+      setWorking(false);
+    }
+  };
+
+  const initiatePayment = async (paymentOption: 'pay_now' | 'buy_now_pay_later') => {
+    if (!customerEmail) {
+      setError('Please provide your email address');
+      return;
+    }
+
+    setWorking(true);
+    setError(null);
+    
+    try {
+      const res = await fetch(`/api/quotations/${id}/payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentOption,
+          customerEmail,
+          customerName: customerName || undefined,
+          customerPhone: customerPhone || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || 'Failed to initiate payment');
+      }
+
+      const data = await res.json();
+      
+      // Redirect to payment URL (for pay_now) or success page (for buy_now_pay_later)
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+      } else {
+        setError('No payment URL received');
+        setWorking(false);
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to initiate payment');
       setWorking(false);
     }
   };
@@ -223,14 +268,27 @@ export default function QuotationDetailPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-sm">Qty: {it.quantity}</div>
-                    <div className="text-sm">{formatCurrency(it.unitPriceCents, quotation.currency)}</div>
-                    <div className="font-semibold">{formatCurrency(it.subtotalCents, quotation.currency)}</div>
+                    {quotation.status === 'APPROVED' || quotation.status === 'CONVERTED' ? (
+                      <>
+                        <div className="text-sm">{formatCurrency(it.unitPriceCents, quotation.currency)}</div>
+                        <div className="font-semibold">{formatCurrency(it.subtotalCents, quotation.currency)}</div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-gray-500 italic">Pending</div>
+                        <div className="font-semibold text-gray-500 italic">Pending</div>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
               <div className="flex items-center justify-between pt-2">
                 <div className="font-semibold">Total</div>
-                <div className="text-blue-700 font-bold">{formatCurrency(quotation.totalCents, quotation.currency)}</div>
+                <div className="text-blue-700 font-bold">
+                  {quotation.status === 'APPROVED' || quotation.status === 'CONVERTED' 
+                    ? formatCurrency(quotation.totalCents, quotation.currency)
+                    : <span className="text-gray-500 italic">Pending</span>}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -254,9 +312,88 @@ export default function QuotationDetailPage() {
             <CardContent className="space-y-2">
               <Button className="w-full" onClick={openPdf}>View PDF</Button>
               <Button variant="outline" className="w-full" disabled={working || quotation.status !== 'SENT'} onClick={approve}>Approve</Button>
-              <Button variant="default" className="w-full" disabled={working} onClick={createOrderFromQuote}>
-                Create Order from Quote
-              </Button>
+              
+              {(quotation.status === 'APPROVED' || quotation.status === 'SENT') && quotation.status !== 'CONVERTED' && (
+                <>
+                  {!showPaymentOptions ? (
+                    <Button variant="default" className="w-full" disabled={working} onClick={() => setShowPaymentOptions(true)}>
+                      Convert to Order & Pay
+                    </Button>
+                  ) : (
+                    <div className="space-y-3 p-3 border rounded-lg">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Email *</label>
+                        <input
+                          type="email"
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                          placeholder="your@email.com"
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Full Name</label>
+                        <input
+                          type="text"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          placeholder="John Doe"
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Phone</label>
+                        <input
+                          type="tel"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          placeholder="+971 50 123 4567"
+                          className="w-full px-3 py-2 border rounded-md text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="default"
+                          className="flex-1"
+                          disabled={working || !customerEmail}
+                          onClick={() => initiatePayment('pay_now')}
+                        >
+                          Pay Now
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className="flex-1"
+                          disabled={working || !customerEmail}
+                          onClick={() => initiatePayment('buy_now_pay_later')}
+                        >
+                          Buy Now Pay Later
+                        </Button>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full text-sm"
+                        onClick={() => {
+                          setShowPaymentOptions(false);
+                          setError(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                  <Button variant="ghost" className="w-full" disabled={working} onClick={createOrderFromQuote}>
+                    Create Order (No Payment)
+                  </Button>
+                </>
+              )}
+              
+              {error && (
+                <div className="p-2 bg-red-50 text-red-600 text-sm rounded">
+                  {error}
+                </div>
+              )}
+              
               {/* Conversion also happens automatically if Zoho converts the estimate on approval */}
               <Link href="/quotations" className="block text-center text-sm text-blue-600 underline">Back to quotations</Link>
             </CardContent>

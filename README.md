@@ -176,6 +176,25 @@ The application will be available at:
 3. Go to http://localhost:3000/test-zoho to connect Zoho
 4. Click "Sync to Database" to import products
 
+## 📋 Testing
+
+This project follows a comprehensive testing policy. See [Testing Policy Documentation](docs/TESTING_POLICY.md) for details.
+
+**Quick Start:**
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run tests with coverage
+pnpm test:coverage
+
+# Run E2E tests
+pnpm test:e2e
+```
+
 ## 🔧 Development
 
 ### Local Development (without Docker)

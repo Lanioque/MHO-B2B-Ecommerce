@@ -75,6 +75,27 @@ export class OrderRepository implements IOrderRepository {
     return order as OrderWithItems;
   }
 
+  async findByTelrTranRef(tranRef: string): Promise<OrderWithItems | null> {
+    const order = await prisma.order.findUnique({
+      where: { telrTranRef: tranRef },
+      include: this.includeClause,
+    });
+
+    if (!order) return null;
+
+    // Fetch branch separately if branchId exists
+    if (order.branchId) {
+      const branch = await prisma.branch.findUnique({
+        where: { id: order.branchId },
+      });
+      if (branch) {
+        (order as any).branch = branch;
+      }
+    }
+
+    return order as OrderWithItems;
+  }
+
   async create(data: CreateOrderData): Promise<OrderWithItems> {
     const { items, ...orderData } = data;
 
